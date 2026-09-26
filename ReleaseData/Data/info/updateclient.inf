@@ -1,0 +1,8 @@
+HttpUrl : kkt1290.cafe24.com
+HttpUrl2 : kkt1290.cafe24.com
+DataDir : RealServer
+GuildDataDir : mainServer
+UpdateTempDir : Update
+UpdateStatusFile : UpdateStatus.inf
+FileListFile : FileList.inf
+RecentFileListFile : RecentFileList.inf

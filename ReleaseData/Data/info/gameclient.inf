@@ -1,0 +1,7 @@
+MaxLoginServerAddress : 1
+LoginServerAddress : 127.0.0.1
+LoginServerAddress1 : 127.0.0.1
+LoginServerPortNum : 1
+LoginServerPort : 9909
+LoginServerCheckPort : 9909
+LoginServerBasePort : 9909
