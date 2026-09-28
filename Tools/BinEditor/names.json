@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-28 12:05:55",
+ "generated": "2026-09-28 12:32:27",
  "item_classes": {
   "0": "MOTORCYCLE",
   "1": "POTION",
@@ -9745,6 +9745,10 @@
     "52": {
      "e": "Moon Crystal",
      "n": "달빛 결정"
+    },
+    "53": {
+     "e": "Burned Original Book",
+     "n": "타버린 원본서"
     },
     "56": {
      "e": "Forbidden Blood",
