@@ -2179,19 +2179,26 @@ void	_Item_Description_Show(Rect rect, void* void_ptr, long left, long right)
 			else		//������ ������ 2
 				if (pMouseItem->GetItemType() == 7 || pMouseItem->GetItemType() == 15 || pMouseItem->GetItemType() == 78 || pMouseItem->GetItemType() == 79)
 				{
-					//if(p_item->GetItemOptionListCount() == 1)
 					const std::list<TYPE_ITEM_OPTION>& optionList = p_item->GetItemOptionList();
 					std::list<TYPE_ITEM_OPTION>::const_iterator itr = optionList.begin();
 
+					// Shine / Edge climb their own ladder, which itemoption.inf does not carry.
+					bool bThirdLadder = (pMouseItem->GetItemType() == 78 || pMouseItem->GetItemType() == 79);
+
 					while (itr != optionList.end())
 					{
-						if ((*g_pItemOptionTable)[*itr].UpgradeOptionType != 0)
+						if (bThirdLadder ? ITEMOPTION_TABLE::GetThirdUpgradeOptionType(*itr) != 0
+										 : (*g_pItemOptionTable)[*itr].UpgradeOptionType != 0)
 						{
 							bCanUpgrade = true;
 							break;
 						}
 						itr++;
 					}
+
+					// The server only enchants an item with exactly one option (executeEnchantOption).
+					if (p_item->GetItemOptionListCount() != 1)
+						bCanUpgrade = false;
 				}
 				else
 					if (pMouseItem->GetItemType() >= 8 && pMouseItem->GetItemType() <= 14 && pMouseItem->GetItemType() != 12 ||

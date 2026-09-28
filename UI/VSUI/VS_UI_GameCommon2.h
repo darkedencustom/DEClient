@@ -653,22 +653,27 @@ public:
 //-----------------------------------------------------------------------------
 // class C_VS_UI_MAILBOX
 //
+// The letters from the server's notices (Mail) and the help messages (Help).
+// A new letter first shows as a blinking envelope at the top left of the
+// screen; opened, the mailbox lists the letters on the left and reads the
+// selected one on the right.
 //-----------------------------------------------------------------------------
 class C_VS_UI_NPC_DIALOG;
 class C_VS_UI_MAILBOX : public Window, public Exec, public ButtonVisual
 {
 private:
-	
+
 	ButtonGroup			*m_pC_button_group;
-	C_VS_UI_SCROLL_BAR	*m_pC_scroll_bar;
-	
+	C_VS_UI_SCROLL_BAR	*m_pC_scroll_bar;			// the list
+	C_VS_UI_SCROLL_BAR	*m_pC_read_scroll_bar;		// the letter being read
+
 	C_SPRITE_PACK		m_SPK;
 
 	class C_VS_UI_MAIL
 	{
 	public:
 		DWORD		id;
-		bool		mark;
+		bool		mark;			// read
 		MString		sender;
 		MString		title;
 		MString		contents;
@@ -688,19 +693,19 @@ private:
 		void SaveToFile(std::string filename);
 		void LoadFromFile(std::string filename);
 	};
-	
+
 	enum EXEC_ID
 	{
 		CLOSE_ID,
 		MAILTAB_ID,
 		HELPTAB_ID,
-		MEMOTAB_ID,
-		UP_ID,
-		DOWN_ID,
+		ACTION_ID,		// Join, or Accept on a union offer
+		DENY_ID,		// Deny on a union offer
 
 		EXECID_MAX,
 	};
-	
+
+	// MailBox.spk: the envelopes of the list and of the new letter notice
 	enum SPRITE_ID
 	{
 		MAIL_CLOSED,
@@ -711,24 +716,6 @@ private:
 		HAS_HELP2,
 		HAS_MEMO,
 		HAS_MEMO2,
-		TAB_MAIL_OUSTERS,
-		TAB_HELP_OUSTERS,
-		TAB_MEMO_OUSTERS,
-		TAB_MAIL_SLAYER,
-		TAB_HELP_SLAYER,
-		TAB_MEMO_SLAYER,
-		TAB_MAIL_VAMPIRE,
-		TAB_HELP_VAMPIRE,
-		TAB_MEMO_VAMPIRE,
-		TITLE_OUSTERS,
-		TITLE_SLAYER,
-		TITLE_VAMPIRE,
-		CONTENTS_OUSTERS,
-		DETAIL_OUSTERS,
-		CONTENTS_VAMPIRE,
-		DETAIL_VAMPIRE,
-		CONTENTS_SLAYER,
-		DETAIL_SLAYER,
 
 		SPRITEID_MAX,
 	};
@@ -741,37 +728,52 @@ public:
 		TAB_MEMO_ID,
 
 		TABID_MAX,
-		
+
 		NEW_MAIL_ID,
 		NEW_HELP_ID,
 		NEW_MEMO_ID,
-		
+
 	};
-	
+
+	// one line of the letter being read
+	struct READ_LINE
+	{
+		std::string	text;
+		COLORREF	color;
+	};
+
 private:
 	TAB_ID	m_currentTab;
-	POINT	m_ptTab, m_ptNewMail;
-	Rect	m_rtContents;
-	int		m_focusContents;
-	C_VS_UI_NPC_DIALOG		*m_pC_dialog ;
+	POINT	m_ptNewMail;
+	int		m_focusRow;						// the list row under the mouse, -1 for none
+	DWORD	m_selectedId[TABID_MAX];		// the letter read on each tab
+	bool	m_bLetterDirty;					// m_readLines needs laying out again
+
+	std::vector<READ_LINE>	m_readLines;
 
 	typedef	std::vector<C_VS_UI_MAIL>	MAILVECTOR_TYPE;
 	MAILVECTOR_TYPE	m_mail[3];
-	int		m_listCount;
-	int		m_overcnt;
-	static int		m_cur_id;
-	static int		m_guild_id;
-	
-	
+
+	void	GetVisibleLetters(int tab, std::vector<int>& indices) const;
+	C_VS_UI_MAIL*	FindLetter(int tab, DWORD id);
+	C_VS_UI_MAIL*	SelectedLetter();
+	int		SelectedAction();
+	void	SelectLetter(int tab, DWORD id);
+	void	SelectTab(TAB_ID tab);
+	void	RefreshList();
+	void	RefreshHelpLetters();
+	void	ShowNotice(TAB_ID tab);
+	void	OpenLetter(TAB_ID tab, DWORD id);
+	void	LayoutLetter();
+
 public:
 	C_VS_UI_MAILBOX();
 	~C_VS_UI_MAILBOX();
-	
-	//void	AddMail(TAB_ID tab_id, DWORD id, SIZE windowSize, const char * sender, const char * title, DWORD date, bool open);
+
 	void	AddMail(TAB_ID tab_id, DWORD id, SIZE windowSize, const char * sender, const char * title, DWORD date, bool open, int guildid=0,int guildtype = 0);
 	void	AddMailContents(TAB_ID tab_id, DWORD id, const char * contents);
 	void	DeleteMail(TAB_ID tab_id, DWORD id);
-	// Help Message 
+	// Help Message
 	void	AddHelpMail(DWORD id,  bool open);
 
 	void	Show();
@@ -779,34 +781,24 @@ public:
 	void	Finish();
 	void	Process();
 	void	Run(id_t id);
-	
-	bool	IsPixel(int _x, int _y);	
+
+	bool	IsPixel(int _x, int _y);
 	bool	MouseControl(UINT message, int _x, int _y);
 	void	KeyboardControl(UINT message, UINT key, long extra);
-	
+
 	void	ShowButtonWidget(C_VS_UI_EVENT_BUTTON * p_button);
 	void	ShowButtonDescription(C_VS_UI_EVENT_BUTTON *p_button);
 	void	WindowEventReceiver(id_t event);
 
-	void	ReadMail(TAB_ID tabID, DWORD id);
 	bool	IsNewMail() { if(m_currentTab > TABID_MAX)return true; return false; };
-	
-	void	SetCurId(int id) { m_cur_id = id;}
-	static int 	GetCurId()   { return m_cur_id;}
-
-	void	SetGuildId(int id) { m_guild_id = id;}
-	static int 	GetGuildId()   { return m_guild_id;}
-
 
 	void	UnacquireMouseFocus()
 	{
-		//		m_pC_button_group->UnacquireMouseFocus();
-		m_focusContents = -1;
+		m_focusRow = -1;
 		m_pC_button_group->UnacquireMouseFocus();
 	}
-	void	CancelPushState() 
+	void	CancelPushState()
 	{
-		//		m_pC_button_group->CancelPushState();
 		m_pC_button_group->CancelPushState();
 	}
 
@@ -814,8 +806,10 @@ public:
 	void LoadFromFile(ivfstream &file);
 	void SaveToFile(std::string filename);
 	void LoadFromFile(std::string filename);
-	void CloseMailBoxDialogBox();
-	
+
+	// a union offer is answered in the mailbox now, so there is no dialog left to close
+	void CloseMailBoxDialogBox() {}
+
 };
 
 struct PETINFO

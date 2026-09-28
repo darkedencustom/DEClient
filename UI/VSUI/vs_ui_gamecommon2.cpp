@@ -5086,246 +5086,737 @@ void	C_VS_UI_HORN::Process()
 // MAILBOX
 //
 ///////////////////////////////////////////////////////////////////
+
+// The mailbox, top to bottom: the title bar with its X, the Mail and Help
+// tabs, then the list of letters on the left (newest first) and the selected
+// letter on the right, with the button that acts on it under the text.
+static const int s_mail_w = 600, s_mail_h = 400;
+static const int s_mail_close_right = 22, s_mail_close_y = 4;	// the X, from the window's right edge
+static const int s_mail_tab_x = 8, s_mail_tab_y = 27;
+static const int s_mail_list_x = 8, s_mail_list_w = 232;
+static const int s_mail_list_header_y = 53, s_mail_list_header_h = 16;
+static const int s_mail_list_rows_y = 71, s_mail_row_h = 20;
+static const int s_mail_footer_h = 30;
+static const int s_mail_list_rows = (s_mail_h - s_mail_footer_h - s_mail_list_rows_y) / s_mail_row_h;
+static const int s_mail_icon_x = 5, s_mail_title_x = 24;		// in a row
+static const int s_mail_text_dy = 3;							// text inside its row
+static const int s_mail_divider_x = 247;
+static const int s_mail_read_x = 256;							// the letter, to s_mail_list_x from the right edge
+static const int s_mail_read_title_y = 29, s_mail_read_from_y = 49, s_mail_read_line_y = 68;
+static const int s_mail_read_text_y = 76, s_mail_read_line_h = 18;
+static const int s_mail_read_bottom = 36;						// the button row under the text
+static const int s_mail_read_rows = (s_mail_h - s_mail_read_bottom - s_mail_read_text_y) / s_mail_read_line_h;
+static const int s_mail_scroll_w = 20;							// a renewal scroll bar, arrows included
+static const int s_mail_button_right = 12, s_mail_button_bottom = 10, s_mail_button_gap = 6;
+static const int s_mail_parked = -1000;							// where a button the letter has no use for waits
+static const WORD s_mail_line_color = 0x2945;					// (40, 40, 40)
+static const COLORREF s_mail_header_color = RGB(160, 190, 190);
+static const COLORREF s_mail_text_color = RGB(215, 215, 215);
+static const COLORREF s_mail_dim_color = RGB(150, 150, 150);
+static const COLORREF s_mail_focus_color = RGB(200, 200, 255);
+static const DWORD s_mail_no_letter = 0xFFFFFFFF;
+static const DWORD s_mail_union_offer_id = 9;					// GCUnionOfferListHandler's letter
+
+static const char* s_mail_title = "Mailbox";
+static const char* s_mail_tab_label[2] = { "Mail", "Help" };
+static const char* s_mail_header_title = "Title";
+static const char* s_mail_header_date = "Date";
+static const char* s_mail_footer_letters = "Letters";
+static const char* s_mail_footer_unread = "Unread";
+static const char* s_mail_from = "From";
+static const char* s_mail_empty = "Select a letter to read it.";
+static const char* s_mail_join_label = "Join";
+static const char* s_mail_accept_label = "Accept";
+static const char* s_mail_deny_label = "Deny";
+
+// what the button under a letter does
+enum MAIL_ACTION
+{
+	MAIL_ACTION_NONE,
+	MAIL_ACTION_JOIN,		// warp to the event (UI_POPUP_MESSAGE_OK picks the zone by the letter's id)
+	MAIL_ACTION_UNION,		// answer a guild union offer
+};
+
+// defined with the quest windows below
+static void g_FitQuestString(char* sz_out, int out_size, const char* src, int max_px, HFONT hfont);
+
+// the notices whose letter can take the player to the event, and where
+static const char* g_MailJoinTip(DWORD id)
+{
+	switch (id)
+	{
+	case 1:
+		return "Go to the beginner zone";
+	case 4:
+		return "Join the level war";
+	case 6:
+		return "Join the race war";
+	}
+	return NULL;
+}
+
+// an MString's text, "" when it has none (a zero-length string loaded from a
+// file holds a placeholder rather than NULL)
+static const char* g_MailText(const MString& str)
+{
+	return (str.GetLength() > 0 && str.GetString() != NULL) ? str.GetString() : "";
+}
+
+// a letter's date as yy/mm/dd; help letters used to be saved as y/m/d
+static void g_MailDate(const MString& date, char* sz_out, int out_size)
+{
+	const char* src = g_MailText(date);
+	int year = 0, month = 0, day = 0;
+	if (sscanf(src, "%d/%d/%d", &year, &month, &day) == 3)
+	{
+		if (year == 0 && month == 0 && day == 0)
+			sz_out[0] = '\0';
+		else
+			_snprintf(sz_out, out_size, "%02d/%02d/%02d", year % 100, month, day);
+	}
+	else
+		_snprintf(sz_out, out_size, "%s", src);
+	sz_out[out_size - 1] = '\0';
+}
+
+// today as yy/mm/dd, the form the notices' dates take
+static std::string g_MailToday()
+{
+	SYSTEMTIME now;
+	GetLocalTime(&now);
+	char sz_date[16];
+	sprintf(sz_date, "%02d/%02d/%02d", now.wYear % 100, now.wMonth, now.wDay);
+	return sz_date;
+}
+
+//-----------------------------------------------------------------------------
+// g_MailParagraphs
+//
+// A letter's text as paragraphs, each in its colour. Lines break at CR LF or at
+// a literal "\n" (how the notice files write it). A <#color='rrggbb'> line
+// colours the lines after it, until a white one. The help messages' picture
+// tags (< file = ... >) and the "<<" lines pointing at a picture are dropped,
+// as the pictures are not shown. A "# " line is a heading.
+//-----------------------------------------------------------------------------
+static void g_MailParagraphs(const char* src, std::vector<C_VS_UI_MAILBOX::READ_LINE>& out)
+{
+	std::string text;
+	for (const char* p = src; *p != '\0'; p++)
+	{
+		if (p[0] == '\\' && p[1] == 'n')
+		{
+			text += '\n';
+			p++;
+		}
+		else if (*p != '\r')
+			text += *p;
+	}
+
+	COLORREF color = s_mail_text_color;
+	size_t start = 0;
+	while (start <= text.size())
+	{
+		size_t end = text.find('\n', start);
+		if (end == std::string::npos)
+			end = text.size();
+		std::string line = text.substr(start, end - start);
+		start = end + 1;
+
+		const size_t first = line.find_first_not_of(" \t");
+		if (first == std::string::npos)
+			line.clear();
+		else
+			line = line.substr(first, line.find_last_not_of(" \t") - first + 1);
+
+		if (!line.empty() && line[0] == '<')
+		{
+			const size_t color_at = line.find("#color");
+			if (color_at != std::string::npos)
+			{
+				const size_t quote = line.find('\'', color_at);
+				const DWORD value = quote == std::string::npos ? 0xFFFFFF : strtoul(line.c_str() + quote + 1, NULL, 16);
+				color = value == 0xFFFFFF ? s_mail_text_color : (COLORREF)value;
+				continue;
+			}
+			if (line.find("file") != std::string::npos || line.compare(0, 2, "<<") == 0)
+				continue;
+		}
+
+		C_VS_UI_MAILBOX::READ_LINE paragraph;
+		paragraph.color = color;
+		if (line.compare(0, 2, "# ") == 0)
+		{
+			paragraph.text = line.substr(2);
+			paragraph.color = s_mail_header_color;
+		}
+		else
+			paragraph.text = line;
+
+		// one blank line between blocks, none at either end
+		if (paragraph.text.empty() && (out.empty() || out.back().text.empty()))
+			continue;
+		out.push_back(paragraph);
+	}
+
+	while (!out.empty() && out.back().text.empty())
+		out.pop_back();
+}
+
+// the bytes of the character at p: a CP949 lead byte takes the next one with it
+static int g_MailCharLen(const char* p)
+{
+	return ((BYTE)p[0] >= 0x80 && p[1] != '\0') ? 2 : 1;
+}
+
+// text wrapped to max_px, at a space where it can and inside a word where it must
+static void g_MailWrap(const std::string& text, int max_px, HFONT hfont, std::vector<std::string>& lines)
+{
+	lines.clear();
+	std::string line;
+	const size_t n = text.size();
+	size_t i = 0;
+	while (i < n)
+	{
+		// the next word, with the spaces before it
+		size_t word = i;
+		while (word < n && text[word] == ' ')
+			word++;
+		size_t end = word;
+		while (end < n && text[end] != ' ')
+			end += g_MailCharLen(text.c_str() + end);
+
+		const std::string candidate = line.empty() ? text.substr(word, end - word) : line + text.substr(i, end - i);
+		if (g_GetStringWidth(candidate.c_str(), hfont) <= max_px)
+		{
+			line = candidate;
+			i = end;
+		}
+		else if (!line.empty())
+		{
+			lines.push_back(line);
+			line.clear();
+			i = word;
+		}
+		else
+		{
+			// a word wider than the line: as much of it as fits, at least a character
+			size_t cut = word + g_MailCharLen(text.c_str() + word);
+			while (cut < end)
+			{
+				const size_t next = cut + g_MailCharLen(text.c_str() + cut);
+				if (g_GetStringWidth(text.substr(word, next - word).c_str(), hfont) > max_px)
+					break;
+				cut = next;
+			}
+			lines.push_back(text.substr(word, cut - word));
+			i = cut;
+		}
+	}
+	if (!line.empty() || lines.empty())
+		lines.push_back(line);
+}
+
 C_VS_UI_MAILBOX::C_VS_UI_MAILBOX()
 {
-	//	AttrTopmost( true );
 	g_RegisterWindow(this);
 
 	m_SPK.Open(SPK_MAILBOX);
 
-	int window_w = 580, window_h = 370;
+	Set(g_pUserInformation->iResolution_x / 2 - s_mail_w / 2, g_pUserInformation->iResolution_y / 2 - s_mail_h / 2, s_mail_w, s_mail_h);
 
-	//Set(RESOLUTION_X/2-window_w/2, RESOLUTION_Y/2-window_h/2, window_w, window_h);
-	Set(g_pUserInformation->iResolution_x / 2 - window_w / 2, g_pUserInformation->iResolution_y / 2 - window_h / 2, window_w, window_h);
-
-	m_listCount = 10;
-	m_overcnt = NULL;
-	//�����ư
-//	m_pC_button_group = new ButtonGroup(this);
-	m_pC_button_group = NULL;
-	m_pC_scroll_bar = NULL;
-
+	m_currentTab = TAB_MAIL_ID;
 	m_ptNewMail.x = 10;
 	m_ptNewMail.y = 50;
-	m_pC_dialog = NULL;
+	m_focusRow = -1;
+	for (int tab = 0; tab < TABID_MAX; tab++)
+		m_selectedId[tab] = s_mail_no_letter;
+	m_bLetterDirty = true;
 
+	m_pC_button_group = new ButtonGroup(this);
+
+	C_SPRITE_PACK* p_widget_spk = gpC_global_resource->m_pC_renewal_widget_spk;
+	m_pC_button_group->Add(new C_VS_UI_EVENT_BUTTON(w - s_mail_close_right, s_mail_close_y,
+		p_widget_spk->GetWidth(C_GLOBAL_RESOURCE::RW_CLOSE), p_widget_spk->GetHeight(C_GLOBAL_RESOURCE::RW_CLOSE),
+		CLOSE_ID, this, C_GLOBAL_RESOURCE::RW_CLOSE));
+
+	const int tab_w = p_widget_spk->GetWidth(C_GLOBAL_RESOURCE::RW_TAB);
+	const int tab_h = p_widget_spk->GetHeight(C_GLOBAL_RESOURCE::RW_TAB);
+	m_pC_button_group->Add(new C_VS_UI_EVENT_BUTTON(s_mail_tab_x, s_mail_tab_y, tab_w, tab_h, MAILTAB_ID, this, C_GLOBAL_RESOURCE::RW_TAB));
+	m_pC_button_group->Add(new C_VS_UI_EVENT_BUTTON(s_mail_tab_x + tab_w + 2, s_mail_tab_y, tab_w, tab_h, HELPTAB_ID, this, C_GLOBAL_RESOURCE::RW_TAB));
+
+	// placed by LayoutLetter when the letter being read has a use for them
+	C_SPRITE_PACK* p_button_spk = gpC_global_resource->m_pC_assemble_box_button_renewal_spk;
+	const int button_w = p_button_spk->GetWidth(C_GLOBAL_RESOURCE::ABR_BUTTON_WIDE_GREEN);
+	const int button_h = p_button_spk->GetHeight(C_GLOBAL_RESOURCE::ABR_BUTTON_WIDE_GREEN);
+	m_pC_button_group->Add(new C_VS_UI_EVENT_BUTTON(s_mail_parked, s_mail_parked, button_w, button_h, ACTION_ID, this, C_GLOBAL_RESOURCE::ABR_BUTTON_WIDE_GREEN));
+	m_pC_button_group->Add(new C_VS_UI_EVENT_BUTTON(s_mail_parked, s_mail_parked, button_w, button_h, DENY_ID, this, C_GLOBAL_RESOURCE::ABR_BUTTON_WIDE_RED));
+
+	m_pC_scroll_bar = new C_VS_UI_SCROLL_BAR(1, Rect(s_mail_list_x + s_mail_list_w - s_mail_scroll_w, s_mail_list_rows_y, -1, s_mail_list_rows * s_mail_row_h));
+	m_pC_scroll_bar->SetRenewal();
+	m_pC_read_scroll_bar = new C_VS_UI_SCROLL_BAR(1, Rect(w - s_mail_list_x - s_mail_scroll_w, s_mail_read_text_y - 2, -1, s_mail_read_rows * s_mail_read_line_h));
+	m_pC_read_scroll_bar->SetRenewal();
 }
 
 C_VS_UI_MAILBOX::~C_VS_UI_MAILBOX()
 {
 	DeleteNew(m_pC_button_group);
 	DeleteNew(m_pC_scroll_bar);
-	if (m_pC_dialog != NULL)
-		DeleteNew(m_pC_dialog);
+	DeleteNew(m_pC_read_scroll_bar);
 
 	g_UnregisterWindow(this);
 }
 
-void	C_VS_UI_MAILBOX::CloseMailBoxDialogBox()
-{
-	if (m_pC_dialog != NULL)
-		DeleteNew(m_pC_dialog);
-}
-
+//-----------------------------------------------------------------------------
+// Start
+//
+// A list tab opens the mailbox; NEW_*_ID shows the new letter notice. Opened
+// while a notice is up, the mailbox opens on that newest letter.
+//-----------------------------------------------------------------------------
 void	C_VS_UI_MAILBOX::Start(TAB_ID tab_id)
 {
-	int close_x = w - 95, close_y = h - 50;
-
-	switch (g_eRaceInterface)
+	if (tab_id < TABID_MAX)
 	{
-	case RACE_SLAYER:
-		m_ptTab.x = 75;
-		m_ptTab.y = -6;
-		break;
+		RefreshHelpLetters();
 
-	case RACE_VAMPIRE:
-		m_ptTab.x = 75;
-		m_ptTab.y = -9;
-		break;
-
-	case RACE_OUSTERS:
-		m_ptTab.x = 75;
-		m_ptTab.y = -3;
-		break;
+		if (Running() && IsNewMail())
+		{
+			tab_id = (TAB_ID)(m_currentTab - NEW_MAIL_ID);
+			std::vector<int> letters;
+			GetVisibleLetters(tab_id, letters);
+			if (!letters.empty())
+				SelectLetter(tab_id, m_mail[tab_id][letters[0]].id);
+		}
+		SelectTab(tab_id);
 	}
+	else
+		m_currentTab = tab_id;
 
-	//�����ư
-	m_pC_button_group = new ButtonGroup(this);
-	m_pC_button_group->Add(new C_VS_UI_EVENT_BUTTON(m_ptTab.x, m_ptTab.y, 62, 18, MAILTAB_ID, this, 0));
-	m_pC_button_group->Add(new C_VS_UI_EVENT_BUTTON(m_ptTab.x + 62, m_ptTab.y, 57, 18, HELPTAB_ID, this, 0));
-	m_pC_button_group->Add(new C_VS_UI_EVENT_BUTTON(m_ptTab.x + 62 + 57, m_ptTab.y, 57, 18, MEMOTAB_ID, this, 0));
-	m_pC_button_group->Add(new C_VS_UI_EVENT_BUTTON(close_x, close_y, gpC_global_resource->m_pC_assemble_box_button_spk->GetWidth(C_GLOBAL_RESOURCE::AB_BUTTON_CLOSE), gpC_global_resource->m_pC_assemble_box_button_spk->GetHeight(C_GLOBAL_RESOURCE::AB_BUTTON_CLOSE), CLOSE_ID, this, C_GLOBAL_RESOURCE::AB_BUTTON_CLOSE));
-
-	m_currentTab = tab_id;
-	m_pC_scroll_bar = new C_VS_UI_SCROLL_BAR(0, Rect(w - 30, 90, -1, 200));
-	//m_pC_scroll_bar->SetPosMax(m_mail[tab_id].size()-9);
-
-
-	m_focusContents = -1;
+	m_focusRow = -1;
 
 	PI_Processor::Start();
 	AttrPin(false);
 
 	gpC_window_manager->AppearWindow(this);
 	m_pC_button_group->Init();
-
 }
 
 void	C_VS_UI_MAILBOX::Finish()
 {
 	PI_Processor::Finish();
 	gpC_window_manager->DisappearWindow(this);
+}
 
-	DeleteNew(m_pC_button_group);
-	DeleteNew(m_pC_scroll_bar);
+// the tab's letters still in the mailbox, newest first, as indices into m_mail[tab]
+void	C_VS_UI_MAILBOX::GetVisibleLetters(int tab, std::vector<int>& indices) const
+{
+	indices.clear();
+	if (tab < 0 || tab >= TABID_MAX)
+		return;
+	for (int i = (int)m_mail[tab].size() - 1; i >= 0; i--)
+	{
+		if (m_mail[tab][i].show)
+			indices.push_back(i);
+	}
+}
+
+C_VS_UI_MAILBOX::C_VS_UI_MAIL* C_VS_UI_MAILBOX::FindLetter(int tab, DWORD id)
+{
+	if (tab < 0 || tab >= TABID_MAX || id == s_mail_no_letter)
+		return NULL;
+	for (size_t i = 0; i < m_mail[tab].size(); i++)
+	{
+		if (m_mail[tab][i].id == id)
+			return &m_mail[tab][i];
+	}
+	return NULL;
+}
+
+// the letter being read, if its tab is open and it is still in the mailbox
+C_VS_UI_MAILBOX::C_VS_UI_MAIL* C_VS_UI_MAILBOX::SelectedLetter()
+{
+	if (m_currentTab >= TABID_MAX)
+		return NULL;
+	C_VS_UI_MAIL* p_mail = FindLetter(m_currentTab, m_selectedId[m_currentTab]);
+	return (p_mail != NULL && p_mail->show) ? p_mail : NULL;
+}
+
+int		C_VS_UI_MAILBOX::SelectedAction()
+{
+	const C_VS_UI_MAIL* p_mail = SelectedLetter();
+	if (p_mail == NULL || m_currentTab != TAB_MAIL_ID)
+		return MAIL_ACTION_NONE;
+	if (p_mail->id == s_mail_union_offer_id)
+		return MAIL_ACTION_UNION;
+	if (g_MailJoinTip(p_mail->id) != NULL)
+		return MAIL_ACTION_JOIN;
+	return MAIL_ACTION_NONE;
+}
+
+void	C_VS_UI_MAILBOX::SelectLetter(int tab, DWORD id)
+{
+	if (tab < 0 || tab >= TABID_MAX)
+		return;
+	m_selectedId[tab] = id;
+	C_VS_UI_MAIL* p_mail = FindLetter(tab, id);
+	if (p_mail != NULL)
+		p_mail->mark = true;
+	m_bLetterDirty = true;
+}
+
+void	C_VS_UI_MAILBOX::SelectTab(TAB_ID tab)
+{
+	m_currentTab = tab;
+	m_focusRow = -1;
+	RefreshList();
+	m_pC_scroll_bar->SetScrollPos(0);
+	m_bLetterDirty = true;
+}
+
+// the list's scroll range, after letters came or went
+void	C_VS_UI_MAILBOX::RefreshList()
+{
+	if (m_currentTab >= TABID_MAX)
+		return;
+	std::vector<int> letters;
+	GetVisibleLetters(m_currentTab, letters);
+	const int pos = m_pC_scroll_bar->GetScrollPos();
+	m_pC_scroll_bar->SetPosMax(max(1, (int)letters.size() - s_mail_list_rows + 1));
+	m_pC_scroll_bar->SetScrollPos(pos);
+}
+
+//-----------------------------------------------------------------------------
+// RefreshHelpLetters
+//
+// A help letter is saved with a copy of its text, so letters saved before the
+// help messages were translated stayed Korean. Take the current title, sender
+// and text of the help message by the letter's id instead.
+//-----------------------------------------------------------------------------
+void	C_VS_UI_MAILBOX::RefreshHelpLetters()
+{
+	if (g_eRaceInterface < RACE_SLAYER || g_eRaceInterface > RACE_OUSTERS)
+		return;
+
+	const MHelpMessageManager& manager = MHelpMessageManager::Instance();
+	for (size_t i = 0; i < m_mail[TAB_HELP_ID].size(); i++)
+	{
+		C_VS_UI_MAIL& mail = m_mail[TAB_HELP_ID][i];
+		if (mail.id >= manager.getMessageSize())
+			continue;
+
+		const MHelpMessage& message = manager.getMessage(mail.id);
+		if (message.m_strTitle[g_eRaceInterface].GetLength() == 0)
+			continue;
+
+		mail.title = message.m_strTitle[g_eRaceInterface];
+		mail.contents = message.m_strDetail[g_eRaceInterface];
+		const int nSender = message.m_iSender[g_eRaceInterface];
+		if (nSender >= 0 && nSender < (int)manager.getSenderSize())
+			mail.sender = manager.getSender(nSender);
+	}
+	m_bLetterDirty = true;
+}
+
+// the blinking envelope for a new letter, unless the mailbox is already open
+void	C_VS_UI_MAILBOX::ShowNotice(TAB_ID tab)
+{
+	if (Running() && !IsNewMail())
+	{
+		RefreshList();
+		return;
+	}
+	m_ptNewMail.x = -400;		// slides in from the left
+	Start((TAB_ID)(NEW_MAIL_ID + tab));
+}
+
+void	C_VS_UI_MAILBOX::OpenLetter(TAB_ID tab, DWORD id)
+{
+	m_currentTab = tab;			// no longer the notice
+	SelectLetter(tab, id);
+	Start(tab);
+}
+
+//-----------------------------------------------------------------------------
+// LayoutLetter
+//
+// The selected letter's text wrapped to its pane (narrower beside the scroll
+// bar when it has to scroll), and its buttons placed. Outside a lock.
+//-----------------------------------------------------------------------------
+void	C_VS_UI_MAILBOX::LayoutLetter()
+{
+	m_bLetterDirty = false;
+	m_readLines.clear();
+
+	std::vector<READ_LINE> paragraphs;
+	const C_VS_UI_MAIL* p_mail = SelectedLetter();
+	if (p_mail != NULL)
+		g_MailParagraphs(g_MailText(p_mail->contents), paragraphs);
+
+	const int pane_w = w - s_mail_read_x - s_mail_list_x;
+	const HFONT hfont = gpC_base->m_chatting_pi.hfont;
+	std::vector<std::string> lines;
+	for (int pass = 0; pass < 2; pass++)
+	{
+		const int text_w = pane_w - 8 - (pass == 0 ? 0 : s_mail_scroll_w + 4);
+		m_readLines.clear();
+		for (size_t i = 0; i < paragraphs.size(); i++)
+		{
+			g_MailWrap(paragraphs[i].text, text_w, hfont, lines);
+			for (size_t l = 0; l < lines.size(); l++)
+			{
+				READ_LINE line;
+				line.text = lines[l];
+				line.color = paragraphs[i].color;
+				m_readLines.push_back(line);
+			}
+		}
+		if ((int)m_readLines.size() <= s_mail_read_rows)
+			break;
+	}
+	m_pC_read_scroll_bar->SetPosMax(max(1, (int)m_readLines.size() - s_mail_read_rows + 1));
+
+	// from the right: Join alone, or Accept then Deny
+	C_VS_UI_EVENT_BUTTON* p_action = m_pC_button_group->GetButton(ACTION_ID);
+	C_VS_UI_EVENT_BUTTON* p_deny = m_pC_button_group->GetButton(DENY_ID);
+	if (p_action == NULL || p_deny == NULL)
+		return;
+
+	p_action->x = p_action->y = p_deny->x = p_deny->y = s_mail_parked;
+	const int right_x = w - s_mail_button_right - p_action->w;
+	const int button_y = h - s_mail_button_bottom - p_action->h;
+	switch (SelectedAction())
+	{
+	case MAIL_ACTION_JOIN:
+		p_action->x = right_x;
+		p_action->y = button_y;
+		break;
+
+	case MAIL_ACTION_UNION:
+		p_deny->x = right_x;
+		p_deny->y = button_y;
+		p_action->x = right_x - s_mail_button_gap - p_action->w;
+		p_action->y = button_y;
+		break;
+	}
 }
 
 void	C_VS_UI_MAILBOX::Show()
 {
 	if (IsNewMail())
 	{
+		// the envelope slides in and blinks, the letter's title beside it
 		if (m_ptNewMail.x >= 10)
 			m_ptNewMail.x = 10;
 		else
 			m_ptNewMail.x += 10;
-		int TempCount = (g_CurrentFrame % 8) / 4;
-		m_SPK.Blt(m_ptNewMail.x/*-TempCount*/, m_ptNewMail.y/*-TempCount*/, HAS_MAIL + TempCount + (m_currentTab - NEW_MAIL_ID) * 2);
-		if (m_mail[m_currentTab - NEW_MAIL_ID].empty() == false)
+
+		const int notice_tab = m_currentTab - NEW_MAIL_ID;
+		const int blink = (g_CurrentFrame % 8) / 4;
+		m_SPK.Blt(m_ptNewMail.x, m_ptNewMail.y, HAS_MAIL + blink + notice_tab * 2);
+
+		std::vector<int> letters;
+		GetVisibleLetters(notice_tab, letters);
+		if (!letters.empty())
 		{
-			C_VS_UI_MAIL* pLastMail = &m_mail[m_currentTab - NEW_MAIL_ID].back();
-			if (pLastMail != NULL)
+			const char* sz_title = g_MailText(m_mail[notice_tab][letters[0]].title);
+			if (sz_title[0] != '\0')
 			{
-				COLORREF color = 0;
-				switch (m_currentTab)
-				{
-				case NEW_MAIL_ID:
-					color = RGB(100, 255, 100);
-					break;
-
-				case NEW_HELP_ID:
-					color = RGB(255, 255, 0);
-					break;
-				}
-
-				g_PrintColorStr(m_ptNewMail.x + 30, m_ptNewMail.y + 4, pLastMail->title.GetString(), gpC_base->m_chatting_pi, color);
+				const bool bGetDC = g_FL2_GetDC();
+				g_PrintColorStr(m_ptNewMail.x + 30, m_ptNewMail.y + 4, sz_title, gpC_base->m_chatting_pi,
+					notice_tab == TAB_HELP_ID ? RGB(255, 255, 0) : RGB(100, 255, 100));
+				if (bGetDC)
+					g_FL2_ReleaseDC();
 			}
 		}
+		return;
 	}
-	else
+
+	if (m_bLetterDirty)
+		LayoutLetter();
+
+	std::vector<int> letters;
+	GetVisibleLetters(m_currentTab, letters);
+
+	const bool bListScroll = m_pC_scroll_bar->GetPosMax() > 1;
+	const bool bReadScroll = m_pC_read_scroll_bar->GetPosMax() > 1;
+	const int list_pos = max(0, m_pC_scroll_bar->GetScrollPos());
+	const int read_pos = max(0, m_pC_read_scroll_bar->GetScrollPos());
+	const int shown = max(0, min((int)letters.size() - list_pos, s_mail_list_rows));
+	const int list_w = s_mail_list_w - (bListScroll ? s_mail_scroll_w + 2 : 0);	// rows stop short of the scroll bar
+	const int read_w = w - s_mail_read_x - s_mail_list_x;
+	const C_VS_UI_MAIL* p_selected = SelectedLetter();
+
+	int selected_row = -1;
+	for (int i = 0; i < shown; i++)
 	{
-		// ����Ʈ ��¿�
-		if (gpC_base->m_p_DDSurface_back->Lock())
+		if (p_selected != NULL && m_mail[m_currentTab][letters[list_pos + i]].id == p_selected->id)
+			selected_row = i;
+	}
+
+	if (gpC_base->m_p_DDSurface_back->Lock())
+	{
+		gpC_global_resource->DrawDialogRenewalLocked(x, y, w, h, C_GLOBAL_RESOURCE::RENEWAL_TITLE_BAR_H);
+
+		RECT header = { x + s_mail_list_x, y + s_mail_list_header_y, x + s_mail_list_x + list_w, y + s_mail_list_header_y + s_mail_list_header_h };
+		DrawAlphaBox(&header, 4, 5, 6, 28);
+
+		// the letter being read
+		if (selected_row != -1)
 		{
-			gpC_global_resource->DrawDialogLocked(x + 10, y, w, h, GetAttributes()->alpha);
-
-			int titleSpriteID;
-			int tabSpriteID = m_currentTab;
-			int contentsSpriteID;
-
-			switch (g_eRaceInterface)
-			{
-			case RACE_SLAYER:
-				tabSpriteID += TAB_MAIL_SLAYER;
-				titleSpriteID = TITLE_SLAYER;
-				contentsSpriteID = CONTENTS_SLAYER;
-				break;
-
-			case RACE_VAMPIRE:
-				tabSpriteID += TAB_MAIL_VAMPIRE;
-				titleSpriteID = TITLE_VAMPIRE;
-				contentsSpriteID = CONTENTS_VAMPIRE;
-				break;
-
-			case RACE_OUSTERS:
-				tabSpriteID += TAB_MAIL_OUSTERS;
-				titleSpriteID = TITLE_OUSTERS;
-				contentsSpriteID = CONTENTS_OUSTERS;
-				break;
-			}
-
-			if (m_pC_scroll_bar->GetScrollPos() >= 0)
-			{
-				m_overcnt = m_pC_scroll_bar->GetScrollPos();
-				if (m_overcnt > m_mail[m_currentTab].size() - m_listCount)
-					m_overcnt = m_mail[m_currentTab].size() - m_listCount;
-			}
-
-
-			const int title_x = w / 2 - m_SPK.GetWidth(titleSpriteID) / 2, title_y = 20;
-
-			m_SPK.BltLocked(x + title_x, y + title_y, titleSpriteID);
-			m_SPK.BltLocked(x + m_ptTab.x, y + m_ptTab.y, tabSpriteID);
-
-			// �ȿ� ���� ����Ʈ ���
-			m_rtContents.x = w / 2 - m_SPK.GetWidth(contentsSpriteID) / 2;
-			m_rtContents.y = 80;
-			m_rtContents.w = m_SPK.GetWidth(contentsSpriteID);
-			m_rtContents.h = m_SPK.GetHeight(contentsSpriteID);
-
-			gpC_global_resource->DrawInBoxLocked(x + m_rtContents.x - 2, y + m_rtContents.y - 2, m_rtContents.w + 4, m_rtContents.h * (m_listCount + 1) + 4);
-			m_SPK.BltLocked(x + m_rtContents.x, y + m_rtContents.y, contentsSpriteID);
-
-			for (int i = 0; i < m_listCount; i++)
-			{
-				m_SPK.BltLocked(x + m_rtContents.x, y + m_rtContents.y + m_rtContents.h * (i + 1), contentsSpriteID + 1);
-
-			}
-
-			int line = 0;
-
-			for (int mailIndex = 0; line < m_listCount && mailIndex < m_mail[m_currentTab].size(); mailIndex++)
-			{
-				if (m_mail[m_currentTab][mailIndex + m_overcnt].show)
-				{
-					if (m_mail[m_currentTab][mailIndex + m_overcnt].mark == true)
-						m_SPK.BltLocked(x + m_rtContents.x + 3, y + m_rtContents.y + 2 + m_rtContents.h * (line + 1), MAIL_OPENED);
-					else
-						m_SPK.BltLocked(x + m_rtContents.x + 3, y + m_rtContents.y + 4 + m_rtContents.h * (line + 1), MAIL_CLOSED);
-					line++;
-				}
-			}
-
-			m_pC_button_group->Show();
-
-			gpC_base->m_p_DDSurface_back->Unlock();
+			const int row_y = y + s_mail_list_rows_y + selected_row * s_mail_row_h;
+			RECT band = { x + s_mail_list_x, row_y, x + s_mail_list_x + list_w, row_y + s_mail_row_h - 1 };
+			DrawAlphaBox(&band, 5, 8, 8, 28);
 		}
 
-		// ���� ����Ʈ ���� ���
-		g_FL2_GetDC();
-
-		const int sender_x = 80, title_x = 145, line_plus = 4, date_x = 450;
-
-		int line = 0;
-
-
-		for (int mailIndex = 0; line < m_listCount && mailIndex < m_mail[m_currentTab].size(); mailIndex++)
+		// a closed envelope for unread, an open one for read
+		for (int i = 0; i < shown; i++)
 		{
-			if (m_mail[m_currentTab][mailIndex + m_overcnt].show)
+			const int sprite = m_mail[m_currentTab][letters[list_pos + i]].mark ? MAIL_OPENED : MAIL_CLOSED;
+			m_SPK.BltLocked(x + s_mail_list_x + s_mail_icon_x,
+				y + s_mail_list_rows_y + i * s_mail_row_h + (s_mail_row_h - 1 - m_SPK.GetHeight(sprite)) / 2, sprite);
+		}
+
+		m_pC_button_group->Show();
+
+		gpC_base->m_p_DDSurface_back->Unlock();
+	}
+
+	// the lines under the rows, the footer's, the one between the list and the
+	// letter, and the one under the letter's heading
+	for (int i = 1; i <= shown; i++)
+		gpC_base->m_p_DDSurface_back->HLine(x + s_mail_list_x, y + s_mail_list_rows_y + i * s_mail_row_h - 1, list_w, s_mail_line_color);
+	gpC_base->m_p_DDSurface_back->HLine(x + s_mail_list_x, y + h - s_mail_footer_h, s_mail_list_w, s_mail_line_color);
+	gpC_base->m_p_DDSurface_back->VLine(x + s_mail_divider_x, y + s_mail_read_title_y, h - s_mail_read_title_y - s_mail_button_bottom, s_mail_line_color);
+	if (p_selected != NULL)
+		gpC_base->m_p_DDSurface_back->HLine(x + s_mail_read_x, y + s_mail_read_line_y, read_w, s_mail_line_color);
+
+	if (bListScroll)
+		m_pC_scroll_bar->Show(x, y);
+	if (bReadScroll)
+		m_pC_read_scroll_bar->Show(x, y);
+
+	gpC_global_resource->DrawRenewalTitle(x, y, s_mail_title);
+
+	const int action = SelectedAction();
+	C_VS_UI_EVENT_BUTTON* p_action = m_pC_button_group->GetButton(ACTION_ID);
+	if (p_action != NULL && p_action->x >= 0)
+	{
+		gpC_global_resource->DrawRenewalButtonLabel(x + p_action->x, y + p_action->y, p_action->w, p_action->h,
+			action == MAIL_ACTION_UNION ? s_mail_accept_label : s_mail_join_label, p_action->GetFocusState() && p_action->GetPressState());
+	}
+	C_VS_UI_EVENT_BUTTON* p_deny = m_pC_button_group->GetButton(DENY_ID);
+	if (p_deny != NULL && p_deny->x >= 0)
+	{
+		gpC_global_resource->DrawRenewalButtonLabel(x + p_deny->x, y + p_deny->y, p_deny->w, p_deny->h,
+			s_mail_deny_label, p_deny->GetFocusState() && p_deny->GetPressState());
+	}
+
+	if (g_FL2_GetDC())
+	{
+		char szString[256];
+
+		// the tabs, with their unread count
+		for (int tab = 0; tab < 2; tab++)
+		{
+			C_VS_UI_EVENT_BUTTON* p_tab = m_pC_button_group->GetButton(MAILTAB_ID + tab);
+			if (p_tab == NULL)
+				continue;
+			int unread = 0;
+			for (size_t i = 0; i < m_mail[tab].size(); i++)
 			{
-				COLORREF color;
+				if (m_mail[tab][i].show && !m_mail[tab][i].mark)
+					unread++;
+			}
+			if (unread > 0)
+				sprintf(szString, "%s (%d)", s_mail_tab_label[tab], unread);
+			else
+				strcpy(szString, s_mail_tab_label[tab]);
+			g_PrintColorStr(x + p_tab->x + (p_tab->w - g_GetStringWidth(szString, gpC_base->m_chatting_pi.hfont)) / 2, y + p_tab->y + s_mail_text_dy,
+				szString, gpC_base->m_chatting_pi, m_currentTab == tab ? RGB_WHITE : s_mail_dim_color);
+		}
 
-				if (line == m_focusContents)
-					color = RGB(200, 200, 255);
-				else if (m_mail[m_currentTab][mailIndex + m_overcnt].mark == true)
-					color = RGB_GRAY;
-				else
-					color = RGB_WHITE;
+		// the list
+		const int header_y = y + s_mail_list_header_y + 1;
+		const int row_right = x + s_mail_list_x + list_w - 4;
+		g_PrintColorStr(x + s_mail_list_x + s_mail_title_x, header_y, s_mail_header_title, gpC_base->m_small_pi, s_mail_header_color);
+		g_PrintColorStr(row_right - g_GetStringWidth(s_mail_header_date, gpC_base->m_small_pi.hfont), header_y, s_mail_header_date, gpC_base->m_small_pi, s_mail_header_color);
 
-				g_PrintColorStr(x + m_rtContents.x + sender_x - g_GetStringWidth(m_mail[m_currentTab][mailIndex + m_overcnt].sender, gpC_base->m_chatting_pi.hfont) / 2, y + m_rtContents.y + line_plus + m_rtContents.h * (line + 1), m_mail[m_currentTab][mailIndex + m_overcnt].sender, gpC_base->m_chatting_pi, color);
-				//zzi Test
-				g_PrintColorStr2(x + m_rtContents.x + title_x, y + m_rtContents.y + line_plus + m_rtContents.h * (line + 1), m_mail[m_currentTab][mailIndex + m_overcnt].title, gpC_base->m_chatting_pi, color, 280);
-				//				g_PrintColorStr(x+m_rtContents.x+title_x, y+m_rtContents.y+line_plus+m_rtContents.h*(line+1), m_mail[m_currentTab][mailIndex+m_overcnt].title, gpC_base->m_chatting_pi, color);
-				g_PrintColorStr(x + m_rtContents.x + date_x, y + m_rtContents.y + line_plus + m_rtContents.h * (line + 1), m_mail[m_currentTab][mailIndex + m_overcnt].date, gpC_base->m_chatting_pi, color);
-				line++;
+		int unread = 0;
+		for (size_t i = 0; i < letters.size(); i++)
+		{
+			if (!m_mail[m_currentTab][letters[i]].mark)
+				unread++;
+		}
+
+		for (int i = 0; i < shown; i++)
+		{
+			const C_VS_UI_MAIL& mail = m_mail[m_currentTab][letters[list_pos + i]];
+			const int text_y = y + s_mail_list_rows_y + i * s_mail_row_h + s_mail_text_dy;
+
+			char szDate[32];
+			g_MailDate(mail.date, szDate, sizeof(szDate));
+			const int date_w = szDate[0] != '\0' ? g_GetStringWidth(szDate, gpC_base->m_chatting_pi.hfont) : 0;
+			if (date_w > 0)
+				g_PrintColorStr(row_right - date_w, text_y, szDate, gpC_base->m_chatting_pi, s_mail_dim_color);
+
+			// unread in bold
+			PrintInfo& pi = mail.mark ? gpC_base->m_chatting_pi : gpC_base->m_user_id_pi;
+			const int title_x = x + s_mail_list_x + s_mail_title_x;
+			g_FitQuestString(szString, sizeof(szString), g_MailText(mail.title), row_right - date_w - 10 - title_x, pi.hfont);
+			if (szString[0] != '\0')
+			{
+				COLORREF color = mail.mark ? s_mail_dim_color : RGB_WHITE;
+				if (i == m_focusRow || i == selected_row)
+					color = s_mail_focus_color;
+				g_PrintColorStr(title_x, text_y, szString, pi, color);
 			}
 		}
 
-		g_FL2_ReleaseDC();
-		if (m_mail[m_currentTab].size() > m_listCount)
+		// the footer: how many letters, how many unread
+		const int footer_y = y + h - s_mail_footer_h + 7;
+		int footer_x = x + s_mail_list_x + 4;
+		footer_x = g_PrintColorStr(footer_x, footer_y + 1, s_mail_footer_letters, gpC_base->m_small_pi, s_mail_header_color) + 6;
+		sprintf(szString, "%d", (int)letters.size());
+		footer_x = g_PrintColorStr(footer_x, footer_y, szString, gpC_base->m_user_id_pi, RGB_WHITE) + 20;
+		footer_x = g_PrintColorStr(footer_x, footer_y + 1, s_mail_footer_unread, gpC_base->m_small_pi, s_mail_header_color) + 6;
+		sprintf(szString, "%d", unread);
+		g_PrintColorStr(footer_x, footer_y, szString, gpC_base->m_user_id_pi, RGB_WHITE);
+
+		// the letter
+		const int read_x = x + s_mail_read_x + 4;
+		if (p_selected != NULL)
 		{
-			m_pC_scroll_bar->Show(x, y);
+			g_FitQuestString(szString, sizeof(szString), g_MailText(p_selected->title), read_w - 8, gpC_base->m_desc_menu_pi.hfont);
+			if (szString[0] != '\0')
+				g_PrintColorStr(read_x, y + s_mail_read_title_y, szString, gpC_base->m_desc_menu_pi, RGB_YELLOW);
+
+			char szDate[32];
+			g_MailDate(p_selected->date, szDate, sizeof(szDate));
+			const int date_right = x + s_mail_read_x + read_w - 4;
+			const int date_w = szDate[0] != '\0' ? g_GetStringWidth(szDate, gpC_base->m_chatting_pi.hfont) : 0;
+			if (date_w > 0)
+				g_PrintColorStr(date_right - date_w, y + s_mail_read_from_y, szDate, gpC_base->m_chatting_pi, s_mail_dim_color);
+
+			const int sender_x = g_PrintColorStr(read_x, y + s_mail_read_from_y + 1, s_mail_from, gpC_base->m_small_pi, s_mail_header_color) + 8;
+			g_FitQuestString(szString, sizeof(szString), g_MailText(p_selected->sender), date_right - date_w - 12 - sender_x, gpC_base->m_chatting_pi.hfont);
+			if (szString[0] != '\0')
+				g_PrintColorStr(sender_x, y + s_mail_read_from_y, szString, gpC_base->m_chatting_pi, RGB_WHITE);
+
+			const int rows = min(s_mail_read_rows, (int)m_readLines.size() - read_pos);
+			for (int i = 0; i < rows; i++)
+			{
+				const READ_LINE& line = m_readLines[read_pos + i];
+				if (!line.text.empty())
+					g_PrintColorStr(read_x, y + s_mail_read_text_y + i * s_mail_read_line_h, line.text.c_str(), gpC_base->m_chatting_pi, line.color);
+			}
 		}
+		else
+		{
+			g_PrintColorStr(x + s_mail_read_x + (read_w - g_GetStringWidth(s_mail_empty, gpC_base->m_chatting_pi.hfont)) / 2,
+				y + h / 2 - 8, s_mail_empty, gpC_base->m_chatting_pi, s_mail_dim_color);
+		}
+
 		m_pC_button_group->ShowDescription();
+		g_FL2_ReleaseDC();
 	}
 }
 
@@ -5337,90 +5828,60 @@ bool	C_VS_UI_MAILBOX::MouseControl(UINT message, int _x, int _y)
 
 	if (IsNewMail())
 	{
-		switch (message)
-		{
-		case M_LEFTBUTTON_DOWN:
-		case M_LB_DOUBLECLICK:
-			m_currentTab = (TAB_ID)(m_currentTab - NEW_MAIL_ID);
-			m_pC_scroll_bar->SetPosMax(m_mail[m_currentTab].size() - (m_listCount - 1));
-			break;
-		}
+		// a click on the notice opens its letter
+		if (message == M_LEFTBUTTON_DOWN || message == M_LB_DOUBLECLICK)
+			Start();
+		return true;
 	}
-	else
+
+	bool re = m_pC_button_group->MouseControl(message, _x, _y);
+	if (m_pC_scroll_bar->GetPosMax() > 1)
+		re &= m_pC_scroll_bar->MouseControl(message, _x, _y);
+	if (m_pC_read_scroll_bar->GetPosMax() > 1)
+		re &= m_pC_read_scroll_bar->MouseControl(message, _x, _y);
+
+	// the list row under the mouse, if it holds a letter
+	std::vector<int> letters;
+	GetVisibleLetters(m_currentTab, letters);
+	const int list_pos = max(0, m_pC_scroll_bar->GetScrollPos());
+	const int list_w = s_mail_list_w - (m_pC_scroll_bar->GetPosMax() > 1 ? s_mail_scroll_w + 2 : 0);
+	int row = -1;
+	if (_x >= s_mail_list_x && _x < s_mail_list_x + list_w &&
+		_y >= s_mail_list_rows_y && _y < s_mail_list_rows_y + s_mail_list_rows * s_mail_row_h)
 	{
-		bool re = m_pC_button_group->MouseControl(message, _x, _y);
-		//	re &= m_pC_scroll_bar->MouseControl(message, _x, _y);
+		row = (_y - s_mail_list_rows_y) / s_mail_row_h;
+		if (list_pos + row >= (int)letters.size())
+			row = -1;
+	}
 
-		if (_x > m_rtContents.x && _x < m_rtContents.x + m_rtContents.w &&
-			_y > m_rtContents.y + m_rtContents.h && _y < m_rtContents.y + m_rtContents.h * (m_listCount + 1))
-		{
-			m_focusContents = (_y - (m_rtContents.y + m_rtContents.h)) / m_rtContents.h;
+	switch (message)
+	{
+	case M_MOVING:
+		m_focusRow = row;
+		break;
 
-			// ������ �Ѿ�� -1
-			int indexSize = 0;
-			for (int mailIndex = 0; mailIndex < m_mail[m_currentTab].size(); mailIndex++)
-			{
-				if (m_mail[m_currentTab][mailIndex].show == true)
-					indexSize++;
-			}
-
-			if (m_focusContents >= indexSize)
-				m_focusContents = -1;
-		}
+	case M_WHEEL_UP:
+	case M_WHEEL_DOWN:
+	{
+		// the list or the letter, whichever the mouse is over
+		C_VS_UI_SCROLL_BAR* p_scroll_bar = _x < s_mail_divider_x ? m_pC_scroll_bar : m_pC_read_scroll_bar;
+		if (message == M_WHEEL_UP)
+			p_scroll_bar->ScrollUp();
 		else
-			m_focusContents = -1;
+			p_scroll_bar->ScrollDown();
+		break;
+	}
 
-		switch (message)
+	case M_LEFTBUTTON_DOWN:
+	case M_LB_DOUBLECLICK:
+		if (row != -1)
+			SelectLetter(m_currentTab, m_mail[m_currentTab][letters[list_pos + row]].id);
+		else if (re && NULL == m_pC_button_group->IsInRect(_x, _y))
 		{
-		case M_MOVING:
-			break;
-
-		case M_LEFTBUTTON_DOWN:
-		case M_LB_DOUBLECLICK:
-			//			m_pC_scroll_bar->SetPosMax(m_mail[m_currentTab].size()-(m_listCount-1));
-			if (m_focusContents != -1)
-			{
-				int index = 0;
-				for (int mailIndex = 0; mailIndex < m_mail[m_currentTab].size(); mailIndex++)
-				{
-					if (m_mail[m_currentTab][mailIndex].show == true)
-					{
-						if (index == m_focusContents)
-						{
-							int ID = m_mail[m_currentTab][mailIndex + m_overcnt].id;
-							ReadMail(m_currentTab, ID);
-							break;
-						}
-						index++;
-					}
-				}
-
-			}
-			else
-			{
-				if (re)
-				{
-					MoveReady();
-					SetOrigin(_x, _y);
-					break;
-				}
-			}
-			break;
-
-		case M_LEFTBUTTON_UP:
-			break;
-
-		case M_WHEEL_UP:
-			if (m_pC_scroll_bar != NULL)
-				m_pC_scroll_bar->ScrollUp();
-			break;
-
-		case M_WHEEL_DOWN:
-			if (m_pC_scroll_bar != NULL)
-				m_pC_scroll_bar->ScrollDown();
-			break;
-
+			MoveReady();
+			SetOrigin(_x, _y);
 		}
+		break;
 	}
 	return true;
 }
@@ -5440,68 +5901,56 @@ void	C_VS_UI_MAILBOX::KeyboardControl(UINT message, UINT key, long extra)
 
 bool	C_VS_UI_MAILBOX::IsPixel(int _x, int _y)
 {
-	bool re = false;
 	if (IsNewMail())
 	{
-		if (_x > m_ptNewMail.x && _x < m_ptNewMail.x + m_SPK.GetWidth(HAS_MAIL) &&
-			_y > m_ptNewMail.y && _y < m_ptNewMail.y + m_SPK.GetHeight(HAS_MAIL))
-			re = true;
-		else
-			re = false;
+		return _x > m_ptNewMail.x && _x < m_ptNewMail.x + m_SPK.GetWidth(HAS_MAIL) &&
+			_y > m_ptNewMail.y && _y < m_ptNewMail.y + m_SPK.GetHeight(HAS_MAIL);
 	}
-	else
-	{
-		re = IsInRect(_x, _y);
-		if (re == false)
-			re = m_SPK.IsPixel(_x - m_ptTab.x - x, _y - m_ptTab.y - y, TAB_MAIL_OUSTERS);
-	}
-
-	return re;
+	return IsInRect(_x, _y);
 }
 
 void	C_VS_UI_MAILBOX::ShowButtonWidget(C_VS_UI_EVENT_BUTTON* p_button)
 {
-	if (p_button->GetID() != MAILTAB_ID && p_button->GetID() != HELPTAB_ID && p_button->GetID() != MEMOTAB_ID)
-	{
-		if (p_button->GetFocusState())
-		{
-			if (p_button->GetPressState())
-				gpC_global_resource->m_pC_assemble_box_button_spk->BltLocked(x + p_button->x, y + p_button->y, p_button->m_image_index + C_GLOBAL_RESOURCE::AB_BUTTON_PUSHED_OFFSET);
-			else
-				gpC_global_resource->m_pC_assemble_box_button_spk->BltLocked(x + p_button->x, y + p_button->y, p_button->m_image_index + C_GLOBAL_RESOURCE::AB_BUTTON_HILIGHTED_OFFSET);
-		}
-		else
-			gpC_global_resource->m_pC_assemble_box_button_spk->BltLocked(x + p_button->x, y + p_button->y, p_button->m_image_index);
-	}
-	//	if(p_button->GetFocusState())
-	//	{		
-	//		if(p_button->GetPressState())
-	//			m_SPK.BltLocked(p_button->x+x, p_button->y+y, p_button->m_image_index+2);
-	//		else
-	//			m_SPK.BltLocked(p_button->x+x, p_button->y+y, p_button->m_image_index+1);
-	//	}
-	//	else
-	//		m_SPK.BltLocked(p_button->x+x, p_button->y+y, p_button->m_image_index);
+	const bool focused = p_button->GetFocusState();
+	const bool pushed = p_button->GetPressState();
 
+	switch (p_button->GetID())
+	{
+	case MAILTAB_ID:
+	case HELPTAB_ID:
+	{
+		const bool selected = (p_button->GetID() == MAILTAB_ID) == (m_currentTab == TAB_MAIL_ID);
+		gpC_global_resource->m_pC_renewal_widget_spk->BltLocked(x + p_button->x, y + p_button->y,
+			C_GLOBAL_RESOURCE::RW_TAB + (selected ? 2 : (focused ? 1 : 0)));
+		break;
+	}
+
+	case CLOSE_ID:
+		gpC_global_resource->BltRenewalCloseLocked(x + p_button->x, y + p_button->y, focused, pushed);
+		break;
+
+	case ACTION_ID:
+	case DENY_ID:
+		if (p_button->x >= 0)
+		{
+			const int frame = p_button->GetID() == DENY_ID ? C_GLOBAL_RESOURCE::ABR_BUTTON_WIDE_RED : C_GLOBAL_RESOURCE::ABR_BUTTON_WIDE_GREEN;
+			gpC_global_resource->m_pC_assemble_box_button_renewal_spk->BltLocked(x + p_button->x, y + p_button->y,
+				frame + (focused ? (pushed ? C_GLOBAL_RESOURCE::AB_BUTTON_PUSHED_OFFSET : C_GLOBAL_RESOURCE::AB_BUTTON_HILIGHTED_OFFSET) : 0));
+		}
+		break;
+	}
 }
 
 void	C_VS_UI_MAILBOX::ShowButtonDescription(C_VS_UI_EVENT_BUTTON* p_button)
 {
-	const static char* m_button_string[4] =
-	{
-		(*g_pGameStringTable)[UI_STRING_MESSAGE_CLOSE_MAILBOX].GetString(),
-		(*g_pGameStringTable)[UI_STRING_MESSAGE_MAILBOX_TAB_MAIL].GetString(),
-		(*g_pGameStringTable)[UI_STRING_MESSAGE_MAILBOX_TAB_HELP].GetString(),
-		(*g_pGameStringTable)[UI_STRING_MESSAGE_MAILBOX_TAB_MEMO].GetString(),
-	};
-
-	g_descriptor_manager.Set(DID_INFO, p_button->x + x, p_button->y + y, (void*)m_button_string[p_button->GetID()], 0, 0);
+	// Join says where it takes you
+	if (p_button->GetID() == ACTION_ID && p_button->x >= 0 && SelectedAction() == MAIL_ACTION_JOIN)
+		g_descriptor_manager.Set(DID_INFO, x + p_button->x, y + p_button->y, (void*)g_MailJoinTip(SelectedLetter()->id), 0, 0);
 }
 
 void	C_VS_UI_MAILBOX::WindowEventReceiver(id_t event)
 {
 }
-
 
 void	C_VS_UI_MAILBOX::Run(id_t id)
 {
@@ -5511,26 +5960,42 @@ void	C_VS_UI_MAILBOX::Run(id_t id)
 		gpC_base->SendMessage(UI_CLOSE_MAILBOX);
 		break;
 
-	case UP_ID:
-		break;
-
-	case DOWN_ID:
-		break;
-
 	case MAILTAB_ID:
-		m_currentTab = TAB_MAIL_ID;
-		m_pC_scroll_bar->SetPosMax(m_mail[m_currentTab].size() - (m_listCount - 1));
+		SelectTab(TAB_MAIL_ID);
 		break;
 
 	case HELPTAB_ID:
-		m_currentTab = TAB_HELP_ID;
-		m_pC_scroll_bar->SetPosMax(m_mail[m_currentTab].size() - (m_listCount - 1));
+		SelectTab(TAB_HELP_ID);
 		break;
 
-	case MEMOTAB_ID:
-		//		m_currentTab = TAB_MEMO_ID;
-		break;
+	case ACTION_ID:
+	case DENY_ID:
+	{
+		C_VS_UI_MAIL* p_mail = SelectedLetter();
+		const int action = SelectedAction();
+		if (p_mail == NULL || action == MAIL_ACTION_NONE)
+			break;
 
+		if (action == MAIL_ACTION_JOIN)
+		{
+			// closes the mailbox and asks the server for the warp
+			if (id == ACTION_ID)
+				gpC_base->SendMessage(UI_POPUP_MESSAGE_OK, p_mail->id);
+			break;
+		}
+
+		// a union offer: to join (guild_type 0), or to let a guild go (1)
+		if (p_mail->guild_type == 0)
+			gpC_base->SendMessage(id == ACTION_ID ? UI_REQUEST_UNION_ACCEPT : UI_REQUEST_UNION_DENY, p_mail->guild_id, 0);
+		else
+			gpC_base->SendMessage(id == ACTION_ID ? UI_REQUEST_UNION_QUIT_ACCEPT : UI_REQUEST_UNION_QUIT_DENY, p_mail->guild_id, 0);
+
+		// answered
+		p_mail->show = false;
+		RefreshList();
+		m_bLetterDirty = true;
+		break;
+	}
 	}
 }
 
@@ -5543,48 +6008,32 @@ void	C_VS_UI_MAILBOX::AddHelpMail(DWORD id, bool open)
 {
 	if (MHelpMessageManager::Instance().getMessageSize() <= id)
 		return;
-	MAILVECTOR_TYPE::iterator itr = m_mail[TAB_HELP_ID].begin();
-	MAILVECTOR_TYPE::iterator endItr = m_mail[TAB_HELP_ID].end();
 
-	// ���� ������ ���� �׳� ����..
-	while (itr != endItr)
-	{
-		if (itr->id == id)
-		{
-			return;
-		}
-		itr++;
-	}
+	// already in the mailbox
+	if (FindLetter(TAB_HELP_ID, id) != NULL)
+		return;
 
-	//	MHelpMessageManager::Instance().LoadHelpMessageRpk("helpmessage.txt");
 	const MHelpMessage& message = MHelpMessageManager::Instance().getMessage(id);
 
-
-	// ���� üũ
+	// only for the race and the level the message is written for
 	switch (g_eRaceInterface)
 	{
-	case RACE_SLAYER: // �ɷ�ġ ������ üũ
+	case RACE_SLAYER:
 		if (message.m_iAttrLow[RACE_SLAYER] != -1)
 		{
 			int Attr_sum = g_char_slot_ingame.STR_CUR + g_char_slot_ingame.DEX_CUR + g_char_slot_ingame.INT_CUR;
 			if (Attr_sum < message.m_iAttrLow[RACE_SLAYER] || Attr_sum > message.m_iAttrLow[RACE_SLAYER])
 				return;
 		}
-		//			if(message.m_iLevelLow[RACE_SLAYER] != -1) // ������ üũ
-		//			{
-		//				int Lead_Lev = max(g_char_slot_ingame.DOMAIN_SWORD, max(g_char_slot_ingame.DOMAIN_BLADE, max(g_char_slot_ingame.DOMAIN_GUN, max(g_char_slot_ingame.DOMAIN_HEAL, g_char_slot_ingame.DOMAIN_ENCHANT))));
-		//				if(Lead_Lev < message.m_iAttrLow[RACE_SLAYER] || Lead_Lev > message.m_iLevelMax[RACE_SLAYER])
-		//					return;
-		//			}
 		break;
-	case RACE_VAMPIRE: // ������ üũ
+	case RACE_VAMPIRE:
 		if (message.m_iLevelLow[RACE_VAMPIRE] != -1)
 		{
 			if (g_char_slot_ingame.level < message.m_iLevelLow[RACE_VAMPIRE] || g_char_slot_ingame.level > message.m_iLevelMax[RACE_VAMPIRE])
 				return;
 		}
 		break;
-	case RACE_OUSTERS: // ������ üũ
+	case RACE_OUSTERS:
 		if (message.m_iLevelLow[RACE_OUSTERS] != -1)
 		{
 			if (g_char_slot_ingame.level < message.m_iLevelLow[RACE_OUSTERS] || g_char_slot_ingame.level > message.m_iLevelMax[RACE_OUSTERS])
@@ -5595,110 +6044,67 @@ void	C_VS_UI_MAILBOX::AddHelpMail(DWORD id, bool open)
 
 	int nSender = message.m_iSender[g_eRaceInterface];
 	int nMaxSenderSize = MHelpMessageManager::Instance().getSenderSize();
-	MString  strSender;
-
-	if (nSender < 0 || nSender >= nMaxSenderSize)
-	{
-		// ���� ��� �Է� ���߰ų�..���� �̻� �� �� 
-		strSender = "";
-	}
-	else
-	{
-		strSender = MHelpMessageManager::Instance().getSender(nSender).GetString();
-	}
 
 	C_VS_UI_MAIL mail;
 	mail.id = id;
-	switch (g_eRaceInterface)
-	{
-	case RACE_SLAYER:
-		mail.sender = strSender;
-		mail.title = message.m_strTitle[g_eRaceInterface];
-		mail.contents = message.m_strDetail[g_eRaceInterface];
-		break;
-
-	case RACE_VAMPIRE:
-		mail.sender = strSender;
-		mail.title = message.m_strTitle[g_eRaceInterface];
-		mail.contents = message.m_strDetail[g_eRaceInterface];
-		break;
-
-	case RACE_OUSTERS:
-		mail.sender = strSender;
-		mail.title = message.m_strTitle[g_eRaceInterface];
-		mail.contents = message.m_strDetail[g_eRaceInterface];
-		break;
-	}
-	if (!mail.title.GetLength()) //������ ������...����..
+	if (nSender >= 0 && nSender < nMaxSenderSize)
+		mail.sender = MHelpMessageManager::Instance().getSender(nSender).GetString();
+	mail.title = message.m_strTitle[g_eRaceInterface];
+	mail.contents = message.m_strDetail[g_eRaceInterface];
+	if (!mail.title.GetLength())	// nothing written for this race
 		return;
 	mail.show = true;
 	mail.mark = false;
-	mail.open = open;
-
-#ifdef _LIB
-	char szData[32];
-	sprintf(szData, "%d/%d/%d", g_pGameTime->GetYear(),
-		g_pGameTime->GetMonth(),
-		g_pGameTime->GetDay());
-	mail.date = szData;
-#endif
+	mail.open = false;
+	mail.date = g_MailToday().c_str();
 
 	m_mail[TAB_HELP_ID].push_back(mail);
 
-
-	Start((TAB_ID)(NEW_MAIL_ID + TAB_HELP_ID));
-
-	m_ptNewMail.x = -400;
-	if (open == true)
-	{
-		Finish();
-		ReadMail(TAB_HELP_ID, id);
-	}
+	if (open)
+		OpenLetter(TAB_HELP_ID, id);
+	else
+		ShowNotice(TAB_HELP_ID);
 }
 
 
 void	C_VS_UI_MAILBOX::AddMail(TAB_ID tab_id, DWORD id, SIZE windowSize, const char* sender, const char* title, DWORD date, bool open, int guildid, int guildtype)
 {
-	char szTemp[512];
-	std::string dateString;
-	sprintf(szTemp, "%d", date / 100);
+	if (tab_id < 0 || tab_id >= TABID_MAX)
+		return;
 
-	// �տ� �⵵�� ���� 03 �̷������� ���� �տ� 0�� ���µ� ����Ҷ� 03�� �̷��� ������ �ϹǷ� �⵵�� ���ڸ����� �տ� 0�� �ٿ��ش�.
-//	if(date < 10000000)
-//		// �⵵�� ���ڸ��϶�
-//	{
-//		dateString = "0";
-//	}
-	if (strlen(szTemp) < 6)
-		dateString = "0";
+	// the notices' dates come as yymmddhh
+	char szDate[16];
+	const DWORD ymd = date / 100;
+	sprintf(szDate, "%02u/%02u/%02u", (unsigned)((ymd / 10000) % 100), (unsigned)((ymd / 100) % 100), (unsigned)(ymd % 100));
 
-
-
-	dateString += szTemp;
-	dateString.insert(2, "/");
-	dateString.insert(5, "/");
-
-	MAILVECTOR_TYPE::iterator itr = m_mail[tab_id].begin();
-	MAILVECTOR_TYPE::iterator endItr = m_mail[tab_id].end();
-
-	while (itr != endItr)
+	C_VS_UI_MAIL* p_mail = FindLetter(tab_id, id);
+	if (p_mail != NULL)
 	{
-		if (itr->id == id)
-		{
-			// ��¥�� �޶�
-			if (strcmp(itr->date.GetString(), dateString.c_str()) != 0)
-			{
-				itr->date = dateString.c_str();
-				itr->mark = false;
-				itr->open = open;
+		// sent again: back in the list, and new if its date moved on
+		const bool bNew = strcmp(g_MailText(p_mail->date), szDate) != 0;
+		p_mail->show = true;
+		p_mail->open = false;
+		p_mail->sender = sender;
+		p_mail->title = title;
+		p_mail->guild_id = guildid;
+		p_mail->guild_type = guildtype;
+		if (m_currentTab == tab_id && m_selectedId[tab_id] == id)
+			m_bLetterDirty = true;
 
-				Start((TAB_ID)(NEW_MAIL_ID + tab_id));
-			}
-			itr->show = true;
-			itr->open = false;
+		if (!bNew)
+		{
+			RefreshList();
 			return;
 		}
-		itr++;
+
+		// the newest letter again: to the end of the list, unread
+		C_VS_UI_MAIL mail = *p_mail;
+		mail.date = szDate;
+		mail.mark = false;
+		m_mail[tab_id].erase(m_mail[tab_id].begin() + (p_mail - &m_mail[tab_id][0]));
+		m_mail[tab_id].push_back(mail);
+		ShowNotice(tab_id);
+		return;
 	}
 
 	C_VS_UI_MAIL mail;
@@ -5707,7 +6113,7 @@ void	C_VS_UI_MAILBOX::AddMail(TAB_ID tab_id, DWORD id, SIZE windowSize, const ch
 	mail.windowSize = windowSize;
 	mail.sender = sender;
 	mail.title = title;
-	mail.date = dateString.c_str();
+	mail.date = szDate;
 	mail.show = true;
 	mail.mark = false;
 	mail.open = open;
@@ -5715,242 +6121,39 @@ void	C_VS_UI_MAILBOX::AddMail(TAB_ID tab_id, DWORD id, SIZE windowSize, const ch
 	mail.guild_type = guildtype;
 	m_mail[tab_id].push_back(mail);
 
-	m_ptNewMail.x = -400;
-
-	Start((TAB_ID)(NEW_MAIL_ID + tab_id));
-
+	ShowNotice(tab_id);
 }
-
-//void	C_VS_UI_MAILBOX::AddMail(TAB_ID tab_id, DWORD id, SIZE windowSize, const char * sender, const char * title, DWORD date, bool open)
-//{
-//	char szTemp[512];
-//	std::string dateString;
-//	sprintf(szTemp, "%d", date/100);
-//	
-//	// �տ� �⵵�� ���� 03 �̷������� ���� �տ� 0�� ���µ� ����Ҷ� 03�� �̷��� ������ �ϹǷ� �⵵�� ���ڸ����� �տ� 0�� �ٿ��ش�.
-////	if(date < 10000000)
-////		// �⵵�� ���ڸ��϶�
-////	{
-////		dateString = "0";
-////	}
-//	if(strlen(szTemp) < 6)
-//		dateString = "0";
-//
-//	
-//
-//	dateString += szTemp;
-//	dateString.insert(2, "/");
-//	dateString.insert(5, "/");
-//	
-//	MAILVECTOR_TYPE::iterator itr = m_mail[tab_id].begin();
-//	MAILVECTOR_TYPE::iterator endItr = m_mail[tab_id].end();
-//	
-//	while(itr != endItr)
-//	{
-//		if(itr->id == id)
-//		{
-//			// ��¥�� �޶�
-//			if(strcmp(itr->date.GetString(), dateString.c_str()) != 0)
-//			{
-//				itr->date = dateString.c_str();
-//				itr->mark = false;
-//				itr->open = open;
-//
-//				Start((TAB_ID)(NEW_MAIL_ID+tab_id));
-//			}
-//			itr->show = true;
-//			itr->open = false;
-//			return;
-//		}
-//		itr++;
-//	}
-//
-//	C_VS_UI_MAIL mail;
-//	
-//	mail.id = id;
-//	mail.windowSize = windowSize;
-//	mail.sender = sender;
-//	mail.title = title;
-//	mail.date = dateString.c_str();
-//	mail.show = true;
-//	mail.mark = false;
-//	mail.open = open;
-//
-//	m_mail[tab_id].push_back(mail);
-//
-//	m_ptNewMail.x = -400;
-//	
-//	Start((TAB_ID)(NEW_MAIL_ID+tab_id));
-//
-//}
 
 void	C_VS_UI_MAILBOX::AddMailContents(TAB_ID tab_id, DWORD id, const char* contents)
 {
-	MAILVECTOR_TYPE::iterator itr = m_mail[tab_id].begin();
-	MAILVECTOR_TYPE::iterator endItr = m_mail[tab_id].end();
+	C_VS_UI_MAIL* p_mail = FindLetter(tab_id, id);
+	if (p_mail == NULL)
+		return;
 
-	while (itr != endItr)
+	p_mail->contents = contents;
+	if (m_currentTab == tab_id && m_selectedId[tab_id] == id)
+		m_bLetterDirty = true;
+
+	// a notice that opens itself, the first time it comes
+	if (p_mail->open)
 	{
-		if (itr->id == id)
-		{
-			itr->contents = contents;
-			if (itr->open == true)
-			{
-				Finish();
-				ReadMail(tab_id, id);
-			}
-			break;
-		}
-		itr++;
+		p_mail->open = false;
+		OpenLetter(tab_id, id);
 	}
-
 }
 
 void	C_VS_UI_MAILBOX::DeleteMail(TAB_ID tab_id, DWORD id)
 {
-	MAILVECTOR_TYPE::iterator itr = m_mail[tab_id].begin();
-	MAILVECTOR_TYPE::iterator endItr = m_mail[tab_id].end();
+	C_VS_UI_MAIL* p_mail = FindLetter(tab_id, id);
+	if (p_mail == NULL)
+		return;
 
-	while (itr != endItr)
+	p_mail->show = false;
+	if (m_currentTab == tab_id)
 	{
-		if (itr->id == id)
-		{
-			itr->show = false;
-			break;
-		}
-		itr++;
-	}
-}
-
-int	C_VS_UI_MAILBOX::m_cur_id;
-int	C_VS_UI_MAILBOX::m_guild_id;
-
-void ExecF_Union_Joinask(C_VS_UI_DIALOG* p_this_dialog, id_t id)
-{
-	if (id == 0)
-	{
-		gpC_base->SendMessage(UI_REQUEST_UNION_ACCEPT, C_VS_UI_MAILBOX::GetGuildId(), 0);
-		gC_vs_ui.DeleteMail(0, C_VS_UI_MAILBOX::GetCurId());
-		gC_vs_ui.CloseAllDialog();
-	}
-	if (id == 1)
-	{
-		gpC_base->SendMessage(UI_REQUEST_UNION_DENY, C_VS_UI_MAILBOX::GetGuildId(), 0);
-		gC_vs_ui.DeleteMail(0, C_VS_UI_MAILBOX::GetCurId());
-		gC_vs_ui.CloseAllDialog();
-	}
-}
-
-void ExecF_Union_Quitask(C_VS_UI_DIALOG* p_this_dialog, id_t id)
-{
-	if (id == 0)
-	{
-		gpC_base->SendMessage(UI_REQUEST_UNION_QUIT_ACCEPT, C_VS_UI_MAILBOX::GetGuildId(), 0);
-		gC_vs_ui.DeleteMail(0, C_VS_UI_MAILBOX::GetCurId());
-		gC_vs_ui.CloseAllDialog();
-	}
-
-	if (id == 1)
-	{
-		gpC_base->SendMessage(UI_REQUEST_UNION_QUIT_DENY, C_VS_UI_MAILBOX::GetGuildId(), 0);
-		gC_vs_ui.DeleteMail(0, C_VS_UI_MAILBOX::GetCurId());
-		gC_vs_ui.CloseAllDialog();
-	}
-}
-
-
-void	C_VS_UI_MAILBOX::ReadMail(TAB_ID tabID, DWORD id)
-{
-	MAILVECTOR_TYPE::iterator itr = m_mail[tabID].begin();
-	MAILVECTOR_TYPE::iterator endItr = m_mail[tabID].end();
-
-	//by csm ���� �о�帰 id �� �ܺο��� �ʿ��ؼ� 
-	SetCurId(id);
-	DIALOG_MENU d_menu[] = { {(*g_pGameStringTable)[UI_STRING_MESSAGE_TEAM_INFO_JOIN_ACCEPT].GetString(), 0},
-								{(*g_pGameStringTable)[UI_STRING_MESSAGE_TEAM_INFO_JOIN_DENY].GetString(), 1},
-								{(*g_pGameStringTable)[UI_STRING_MESSAGE_CANCEL].GetString(), DIALOG_EXECID_EXIT},
-	};
-
-	DIALOG_MENU d_menu2[] = { {(*g_pGameStringTable)[UI_STRING_MESSAGE_TOTAL_GUILD_LEAVE_ACCEPT].GetString(), 0},
-								{(*g_pGameStringTable)[UI_STRING_MESSAGE_TOTAL_GUILD_LEAVE_DENY].GetString(), 1},
-								{(*g_pGameStringTable)[UI_STRING_MESSAGE_CANCEL].GetString(), DIALOG_EXECID_EXIT},
-	};
-
-
-	static std::string pp_dmsg_union[] = { (*g_pGameStringTable)[UI_STRING_MESSAGE_TOTAL_GUILD_JOIN_ASK].GetString() };
-	static std::string pp_dmsg_union2[] = { (*g_pGameStringTable)[UI_STRING_MESSAGE_TOTAL_GUILD_LEAVE_ASK].GetString() };
-
-
-	while (itr != endItr)
-	{
-		if (itr->id == id)
-		{
-			itr->mark = true;
-
-			if (itr->contents.GetLength() == 0)
-			{
-				// �޼��� ������
-			}
-			else
-			{
-				if (tabID == TAB_HELP_ID) //HelPMessage ���
-				{
-					//gC_vs_ui.RunHelpDesc(m_mail[tabID][id].contents ,m_mail[tabID][id].title , id);
-					gC_vs_ui.RunHelpDesc((itr)->contents, (itr)->title, id);
-				}
-				else
-				{
-
-					C_VS_UI_POPUP_MESSAGE::PopupWindowStyle style;
-					if (id == 1 || id == 4 || id == 6)
-					{
-						style.Style = C_VS_UI_POPUP_MESSAGE::STYLE_JOIN_BUTTON | C_VS_UI_POPUP_MESSAGE::STYLE_ABSENCE_BUTTON;
-					}
-					else
-					{
-						style.Style = C_VS_UI_POPUP_MESSAGE::STYLE_CANCEL_BUTTON;
-					}
-
-					style.WindowX = itr->windowSize.cx;
-					style.WindowY = itr->windowSize.cy;
-
-
-					if (id != 9)
-					{
-						style.Type = C_VS_UI_POPUP_MESSAGE::POPUP_NORMAL;
-						style.str = itr->contents;
-						style.SendID = itr->id;
-
-						m_focusContents = -1;
-						gC_vs_ui.RunPopupMessage(style);
-					}
-					else
-					{
-
-						SetGuildId(itr->guild_id);
-
-						if (itr->guild_type == 0)
-						{
-							m_pC_dialog = new C_VS_UI_NPC_DIALOG(ExecF_Union_Joinask, NULL, NULL, 500, 250);
-							m_pC_dialog->SetMenu(d_menu, 3, false);
-							m_pC_dialog->SetMessage(pp_dmsg_union, sizeof(pp_dmsg_union) / sizeof(pp_dmsg_union[0])); //, SMO_NOFIT);
-							m_pC_dialog->Start();
-						}
-						else if (itr->guild_type == 1)
-						{
-							m_pC_dialog = new C_VS_UI_NPC_DIALOG(ExecF_Union_Quitask, NULL, NULL, 500, 250);
-							m_pC_dialog->SetMenu(d_menu2, 3, false);
-							m_pC_dialog->SetMessage(pp_dmsg_union2, sizeof(pp_dmsg_union2) / sizeof(pp_dmsg_union2[0])); //, SMO_NOFIT);
-							m_pC_dialog->Start();
-						}
-					}
-
-				}
-			}
-
-			break;
-		}
-		itr++;
+		RefreshList();
+		if (m_selectedId[tab_id] == id)
+			m_bLetterDirty = true;
 	}
 }
 
@@ -5962,6 +6165,8 @@ C_VS_UI_MAILBOX::C_VS_UI_MAIL::C_VS_UI_MAIL()
 	open = false;
 	windowSize.cx = -1;
 	windowSize.cy = -1;
+	guild_id = 0;
+	guild_type = 0;
 }
 
 C_VS_UI_MAILBOX::C_VS_UI_MAIL::~C_VS_UI_MAIL()
@@ -5989,7 +6194,7 @@ bool C_VS_UI_MAILBOX::C_VS_UI_MAIL::LoadFromFile(ivfstream& file)
 	contents.LoadFromFile(file);
 	date.LoadFromFile(file);
 	file.read((char*)&windowSize, sizeof(SIZE));
-	if (id == 9) // ���Ͽ� ��忡 ���ѰŸ� �ε��ʴ´�.
+	if (id == s_mail_union_offer_id)	// a union offer is only good while it stands
 		return false;
 	return true;
 }
@@ -6042,27 +6247,40 @@ void C_VS_UI_MAILBOX::SaveToFile(std::ofstream& file)
 
 void C_VS_UI_MAILBOX::LoadFromFile(ivfstream& file)
 {
-	DWORD flag = 0;
-	file.read((char*)&flag, sizeof(DWORD));
-
-	BYTE tabCount;
-	file.read((char*)&tabCount, sizeof(BYTE));
-
-	for (int tab = 0; tab < tabCount; tab++)
+	// a file cut short or out of step keeps the letters read before the damage
+	// (MString throws bad_alloc on a length it cannot believe)
+	const DWORD max_letters = 10000;
+	try
 	{
-		DWORD mailCount;
-		file.read((char*)&mailCount, sizeof(DWORD));
+		DWORD flag = 0;
+		file.read((char*)&flag, sizeof(DWORD));
 
-		C_VS_UI_MAIL tempMail;
-		for (int mail = 0; mail < mailCount; mail++)
+		BYTE tabCount = 0;
+		file.read((char*)&tabCount, sizeof(BYTE));
+		if (tabCount > TABID_MAX)
+			return;
+
+		for (int tab = 0; tab < tabCount && !file.eof(); tab++)
 		{
-			if (tempMail.LoadFromFile(file))
+			DWORD mailCount = 0;
+			file.read((char*)&mailCount, sizeof(DWORD));
+			if (mailCount > max_letters)
+				return;
+
+			C_VS_UI_MAIL tempMail;
+			for (DWORD mail = 0; mail < mailCount && !file.eof(); mail++)
 			{
-				if (tab == TAB_HELP_ID)
-					tempMail.show = true;
-				m_mail[tab].push_back(tempMail);
+				if (tempMail.LoadFromFile(file))
+				{
+					if (tab == TAB_HELP_ID)
+						tempMail.show = true;
+					m_mail[tab].push_back(tempMail);
+				}
 			}
 		}
+	}
+	catch (std::bad_alloc&)
+	{
 	}
 }
 

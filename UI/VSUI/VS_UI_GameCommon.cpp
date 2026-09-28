@@ -11920,15 +11920,24 @@ bool C_VS_UI_INVENTORY::Click(int grid_start_x, int grid_start_y)
 															const std::list<TYPE_ITEM_OPTION>& optionList = p_cur_item->GetItemOptionList();
 															std::list<TYPE_ITEM_OPTION>::const_iterator itr = optionList.begin();
 
+															// Shine / Edge climb their own ladder, which itemoption.inf does not carry.
+															bool bThirdLadder = (pMouseItem->GetItemType() == 78 || pMouseItem->GetItemType() == 79);
+
 															while (itr != optionList.end())
 															{
-																if ((*g_pItemOptionTable)[*itr].UpgradeOptionType != 0)
+																if (bThirdLadder ? ITEMOPTION_TABLE::GetThirdUpgradeOptionType(*itr) != 0
+																				 : (*g_pItemOptionTable)[*itr].UpgradeOptionType != 0)
 																{
 																	bCanUpgrade = true;
 																	break;
 																}
 																itr++;
 															}
+
+															// The server only enchants an item with exactly one option with the Blue Drops (executeEnchantOption).
+															if ((pMouseItem->GetItemType() == 7 || pMouseItem->GetItemType() == 15 || bThirdLadder)
+																&& p_cur_item->GetItemOptionListCount() != 1)
+																bCanUpgrade = false;
 
 															// 2009.11.25 by neclipse ??????????? ?????? ???????? ??? ???? ??´?.
 															if (pMouseItem->GetItemType() == 78 || pMouseItem->GetItemType() == 79)

@@ -1086,7 +1086,8 @@ MActionResultNodeChangeItemOptionInInventory::Execute()
 			else
 				pInvenItem->AddItemOption(newOption);
 
-			if((*g_pItemOptionTable)[oriOption].UpgradeOptionType == newOption)
+			if((*g_pItemOptionTable)[oriOption].UpgradeOptionType == newOption
+				|| newOption != 0 && ITEMOPTION_TABLE::GetThirdUpgradeOptionType(oriOption) == newOption)
 				bSucces |= true;
 		}
 	}

@@ -119,6 +119,9 @@ public:
 	MString ITEMOPTION_PARTENAME[MAX_PART];
 
 	void	LoadFromFile(ivfstream& file);
+
+	// Blue Drop Shine / Edge ladder: the option this one becomes, 0 if they cannot enchant it.
+	static int	GetThirdUpgradeOptionType(int option);
 };
 
 const WORD ITEM_COLOR_PART[ITEMOPTION_TABLE::ITEMOPTION_PART::MAX_PART] = 

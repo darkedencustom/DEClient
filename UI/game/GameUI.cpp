@@ -4577,7 +4577,7 @@ UI_RunNotice(DWORD sendID, DWORD parameter)
 {
 	std::string FileName;
 
-	SIZE windowSize;
+	SIZE windowSize = { 0, 0 };
 	bool bOpen = false;
 	char szDate[128];
 	switch(sendID)
@@ -4626,12 +4626,15 @@ UI_RunNotice(DWORD sendID, DWORD parameter)
 
 	// 2�� �� ����Ʈ
 	case 7:
-		sprintf(szDate, "%02d%02d%02d",	(g_pGameTime->GetYear()+100)%100,
-									g_pGameTime->GetMonth(),
-									g_pGameTime->GetDay());
+	{
+		// today, not the game world's calendar, like the notices the server dates
+		SYSTEMTIME now;
+		GetLocalTime(&now);
+		sprintf(szDate, "%02d%02d%02d", now.wYear % 100, now.wMonth, now.wDay);
 		parameter = (atoi(szDate))*100;
 		FileName = "2ndPetQuest";
 		break;
+	}
 	case 8: 
 		gC_vs_ui.RunSMSMessage();
 		return;
@@ -4669,7 +4672,12 @@ UI_RunNotice(DWORD sendID, DWORD parameter)
 	std::string sender, title, contents;
 	if( PackFile.IsSet() )
 	{
-		PackFile.Open( FileName.c_str() );
+		// no letter when its text is not in the archive
+		if( !PackFile.Open( FileName.c_str() ) )
+		{
+			PackFile.Release();
+			return;
+		}
 		ZeroMemory( szLine, 4096 );
 		PackFile.GetString(szLine, 4096);
 		sscanf(szLine, "%d %d", &windowSize.cx, &windowSize.cy);
