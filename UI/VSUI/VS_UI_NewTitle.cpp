@@ -8362,7 +8362,8 @@ C_VS_UI_OPTION::C_VS_UI_OPTION(bool IsTitle)
 		// control_tab ?????
 	//	int list_button_x = 341, list_button_y = 54;
 		m_pC_control_button_group = new ButtonGroup(this);
-		// no Normal/Enter chat radios: Enter chat is the only mode (UserOption)
+		m_pC_control_button_group->Add(new C_VS_UI_EVENT_BUTTON(m_check_x + 10, m_check_y, m_pC_etc_spk->GetWidth(RADIO_BACK_DISABLE), m_pC_etc_spk->GetHeight(RADIO_BACK_DISABLE), CHECK_NORMAL_CHAT, this, RADIO_BACK_DISABLE));
+		m_pC_control_button_group->Add(new C_VS_UI_EVENT_BUTTON(m_check_x + 120, m_check_y, m_pC_etc_spk->GetWidth(RADIO_BACK_DISABLE), m_pC_etc_spk->GetHeight(RADIO_BACK_DISABLE), CHECK_ENTER_CHAT, this, RADIO_BACK_DISABLE));
 
 		for (i = 0; i < CHECK_CONTROL_MAX; i++)
 			m_pC_control_button_group->Add(new C_VS_UI_EVENT_BUTTON(m_check_x, m_check_y + m_check_gap * (8 + i), m_pC_etc_spk->GetWidth(CHECK_BACK_DISABLE), m_pC_etc_spk->GetHeight(CHECK_BACK_DISABLE), CHECK_CONTROL_TAB + i + 2, this, CHECK_BACK_DISABLE));
@@ -8421,7 +8422,8 @@ C_VS_UI_OPTION::C_VS_UI_OPTION(bool IsTitle)
 		// control_tab ?????
 		//	int list_button_x = 341, list_button_y = 54;
 		m_pC_control_button_group = new ButtonGroup(this);
-		// no Normal/Enter chat radios: Enter chat is the only mode (UserOption)
+		m_pC_control_button_group->Add(new C_VS_UI_EVENT_BUTTON(m_check_x + 10, m_check_y, m_pC_main_spk->GetWidth(TITLE_RADIO_BACK), m_pC_main_spk->GetHeight(TITLE_RADIO_BACK), CHECK_NORMAL_CHAT, this, TITLE_RADIO_BACK));
+		m_pC_control_button_group->Add(new C_VS_UI_EVENT_BUTTON(m_check_x + 120, m_check_y, m_pC_main_spk->GetWidth(TITLE_RADIO_BACK), m_pC_main_spk->GetHeight(TITLE_RADIO_BACK), CHECK_ENTER_CHAT, this, TITLE_RADIO_BACK));
 
 		// (no checkbox rows on the control tab -- see CHECK_CONTROL_MAX)
 
@@ -9790,7 +9792,11 @@ void C_VS_UI_OPTION::Show()
 
 		g_FL2_GetDC();
 		//g_PrintColorStr(x+m_vampire_plus_x+130, y+m_vampire_plus_y+56, "Input Style : ", gpC_base->m_user_id_pi, strColor);
-		// (the Normal/Enter chat labels went with their radios)
+		g_PrintColorStr(x + m_vampire_plus_x + m_check_x + 30, y + m_vampire_plus_y + m_check_y,
+			(*g_pGameStringTable)[UI_STRING_MESSAGE_OPTION_MENU_NORMAL_CHATTING].GetString(), gpC_base->m_user_id_pi, strColor);
+
+		g_PrintColorStr(x + m_vampire_plus_x + m_check_x + 140, y + m_vampire_plus_y + m_check_y,
+			(*g_pGameStringTable)[UI_STRING_MESSAGE_OPTION_MENU_ENTER_CHATTING].GetString(), gpC_base->m_user_id_pi, strColor);
 
 
 		//m_pC_etc_spk->Blt(x+m_vampire_plus_x+230, y+m_vampire_plus_y+53, HOTKEY_BACK);

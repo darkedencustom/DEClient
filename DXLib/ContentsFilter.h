@@ -255,7 +255,7 @@
 #define __JAPAN_UI							__OFF	// Japan UI
 #define __NEW_PET_FIRE_ELEMENTAL			__ON	// New market item (Fire Elemental)
 #define __SECOND_TRANSFORTER				__ON	// New transport, second batch
-#define __ADD_MAGICPROTECTION				__OFF	// Magic defense added to accessory items (excludes core zap types and advancement items)
+#define __ADD_MAGICPROTECTION				__ON	// Magic defense added to accessory items (excludes core zap types and advancement items)
 #define __LOCALIZING_LONGNAME				__ON 	// Allows long monster names when localizing for Japan
 #define __OX_EVENT							__OFF	// OX event
 #define __ITEM_SHOW							__ON	// Item view

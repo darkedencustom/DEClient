@@ -137,7 +137,6 @@ InitUserOption()
 	
 	g_pUserOption->persnalShopupdatetime	= GetPersnalShopUpdateTime();
 	g_pUserOption->PlayWaveMusic			= TRUE;
-	g_pUserOption->UseEnterChat			= TRUE;	// a saved Normal chat is ignored; it can no longer be chosen
 	
 //	g_pUserOption->Resolution1024			= g_pUserInformation->IsResolution1024;
 
