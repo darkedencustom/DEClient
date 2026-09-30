@@ -192,21 +192,21 @@ ClientConfig::ClientConfig()
 //	URL_HOMEPAGE					= "http://www.t2cn.com";				// 홈페이지 main
 //	URL_HOMEPAGE_NEW_USER			= "http://member.t2cn.com/reg";		// 새 사용자 등록 URL
 //	URL_HOMEPAGE_BILING				= "http://member.t2cn.com/billing";
-	URL_HOMEPAGE					= "http://www.darkeden.com";				// 홈페이지 main
-	URL_HOMEPAGE_NEW_USER			= "http://www.darkeden.com/pg/new_reg.html";		// 새 사용자 등록 URL
-	URL_HOMEPAGE_NEW_USER_NETMARBLE	= "http://game3.netmarble.net/cp_site/dark";
+	URL_HOMEPAGE					= "https://www.dkredux.com/";				// 홈페이지 main
+	URL_HOMEPAGE_NEW_USER			= "https://www.dkredux.com/";		// 새 사용자 등록 URL
+	URL_HOMEPAGE_NEW_USER_NETMARBLE	= "https://www.dkredux.com/";
 	URL_HOMEPAGE_BILING				= "http://www.darkeden.com/pg/buy_index.html";
 #if __CONTENTS(__ID_PASSWORD)
-	URL_HOMEPAGE_NEW_USER = "http://www.joymax.com/darkeden/Darkeden_Front.jmx?workURL=http://darkedencp.joymax.com/notarget/agreement/agreement.asp";
+	URL_HOMEPAGE_NEW_USER = "https://www.dkredux.com/";
 #endif	//__ID_PASSWORD
 #if __CONTENTS(__JAPAN_UI)
-	URL_HOMEPAGE_NEW_USER_NETMARBLE	= "http://www.netmarble.jp/";
+	URL_HOMEPAGE_NEW_USER_NETMARBLE	= "https://www.dkredux.com/";
 #endif //__JAPAN_UI
 #if __CONTENTS(__IMI_INTERFACE)
-	URL_HOMEPAGE_NEW_USER = "http://dark.gamemania.co.kr";
+	URL_HOMEPAGE_NEW_USER = "https://www.dkredux.com/";
 #endif //__IMI_INTERFACE
 #if __CONTENTS(__TAIWAN_INTERFACE)
-	URL_HOMEPAGE_NEW_USER = "http://www.darkeden.com.tw";
+	URL_HOMEPAGE_NEW_USER = "https://www.dkredux.com/";
 #endif //__TAIWAN_INTERFACE
 //이거 정리좀 하자.. 더럽다.. ㅜ.ㅜ
 
