@@ -594,7 +594,7 @@ void parseCreatureSpriteMapper(Cursor& c, InfDoc& d)
 void parseCreature(Cursor& c, InfDoc& d)
 {
     typeTable(c, d, [](Cursor& c, InfRecord& r) {
-        static const wchar_t* tribes[] = { L"SLAYER", L"VAMPIRE", L"NPC", L"SLAYER_NPC", L"OUSTERS", L"OUSTERS_NPC" };
+        static const wchar_t* tribes[] = { L"SLAYER", L"VAMPIRE", L"NPC", L"SLAYER_NPC", L"OUSTERS", L"OUSTERS_NPC", L"?", L"OBJECT", L"OBJECT_2", L"OBJECT_3" };
         Rec R(r, c);
         r.summary = c.str();
         R.add(L"Name", r.summary);
@@ -603,7 +603,7 @@ void parseCreature(Cursor& c, InfDoc& d)
         R.add(L"SpriteTypes", joinNums(spriteTypes));
         R.flag(L"Male", c.u8() != 0);
         uint8_t tribe = c.u8();
-        R.add(L"CreatureTribe", fmt(L"%u (%s)", tribe, tribe < 6 ? tribes[tribe] : L"?"));
+        R.add(L"CreatureTribe", fmt(L"%u (%s)", tribe, tribe < 10 ? tribes[tribe] : L"?"));
         R.add(L"MoveTimes", c.u8());
         R.add(L"MoveRatio", c.u8());
         R.add(L"MoveTimesMotor", c.u8());
@@ -627,6 +627,7 @@ void parseCreature(Cursor& c, InfDoc& d)
             case 0: case 3: max = 40; break;                                               // ACTION_MAX_SLAYER
             case 1: max = (!spriteTypes.empty() && spriteTypes[0] == 204) ? 22 : 17; break; // vampire; sprite 204 uses the ousters set
             case 2: max = 17; break;                                                       // NPC uses ACTION_MAX_VAMPIRE
+            case 7: case 8: case 9: max = 17; break;                                       // DK670 objects (NPC layout)
             case 4: case 5: max = 22; break;                                               // ACTION_MAX_OUSTERS
         }
         R.add(L"ActionMax", max);

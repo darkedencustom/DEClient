@@ -247,6 +247,9 @@ CREATURETABLE_INFO::GetActionMax() const
 		return ACTION_MAX_OUSTERS;
 		break;
 
+	case CREATURETRIBE_OBJECT:			// DK670 objects: laid out like NPCs
+	case CREATURETRIBE_OBJECT_2:
+	case CREATURETRIBE_OBJECT_3:
 	case CREATURETRIBE_NPC:				// NPC
 		//return ACTION_MAX_NPC;
 		return ACTION_MAX_VAMPIRE;

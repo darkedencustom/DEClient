@@ -19,6 +19,7 @@
 #include "TempInformation.h"
 #include "MParabolaEffect.h"
 #include "MPlayer.h"
+#include "MEffectStatusTable.h"
 #include "MActionInfoTable.h"
 #include "MEffectTarget.h"
 #include "MEffectGeneratorTable.h"
@@ -1970,6 +1971,9 @@ MPlayer::SetDestination(TYPE_SECTORPOSITION sX, TYPE_SECTORPOSITION sY)
 bool
 MPlayer::SelfSpecialAction()
 {
+	// Dracula Castle: no skills at all while carrying the Mihnea (the server refuses them)
+	if (g_pEffectStatusTable->GetSize() > EFFECTSTATUS_HAS_MIHNEA && HasEffectStatus(EFFECTSTATUS_HAS_MIHNEA))
+		return false;
 	if (HasEffectStatus(EFFECTSTATUS_SLEEP)
 		&& !g_pPlayer->HasEffectStatus(EFFECTSTATUS_GHOST)
 #ifdef __METROTECH_TEST__
@@ -3058,6 +3062,13 @@ MPlayer::TraceCreatureToBasicAction(TYPE_OBJECTID id, bool bForceAttack, bool bC
 		return false;
 	}
 
+	// Dracula Castle: the Mihnea's bearer cannot attack. The server refuses it, so do not start the swing at all.
+	if (g_pEffectStatusTable->GetSize() > EFFECTSTATUS_HAS_MIHNEA && HasEffectStatus(EFFECTSTATUS_HAS_MIHNEA))
+	{
+		MCreature* pMihneaTarget = m_pZone->GetCreature(id);
+		if (pMihneaTarget != NULL && !pMihneaTarget->IsNPC() && pMihneaTarget->GetID() != GetID())
+			return false;
+	}
 	if (m_nBasicActionInfo == ACTIONINFO_NULL)
 		return false;
 
@@ -3506,6 +3517,13 @@ bool
 MPlayer::TraceCreatureToSpecialAction(TYPE_OBJECTID id, bool bForceAttack)
 {
 	SetActionDelay(0);
+	// Dracula Castle: the Mihnea's bearer cannot attack. The server refuses it, so do not start the swing at all.
+	if (g_pEffectStatusTable->GetSize() > EFFECTSTATUS_HAS_MIHNEA && HasEffectStatus(EFFECTSTATUS_HAS_MIHNEA))
+	{
+		MCreature* pMihneaTarget = m_pZone->GetCreature(id);
+		if (pMihneaTarget != NULL && !pMihneaTarget->IsNPC() && pMihneaTarget->GetID() != GetID())
+			return false;
+	}
 
 	if ((HasEffectStatus(EFFECTSTATUS_SLEEP) || HasEffectStatus(EFFECTSTATUS_BLOCK_HEAD))
 		&& !g_pPlayer->HasEffectStatus(EFFECTSTATUS_GHOST)
@@ -4155,6 +4173,9 @@ MPlayer::TraceSectorToBasicAction(TYPE_SECTORPOSITION sX, TYPE_SECTORPOSITION sY
 bool
 MPlayer::TraceSectorToSpecialAction(TYPE_SECTORPOSITION sX, TYPE_SECTORPOSITION sY)
 {
+	// Dracula Castle: no skills at all while carrying the Mihnea (the server refuses them)
+	if (g_pEffectStatusTable->GetSize() > EFFECTSTATUS_HAS_MIHNEA && HasEffectStatus(EFFECTSTATUS_HAS_MIHNEA))
+		return false;
 	if ((HasEffectStatus(EFFECTSTATUS_SLEEP) || HasEffectStatus(EFFECTSTATUS_BLOCK_HEAD))
 		&& !g_pPlayer->HasEffectStatus(EFFECTSTATUS_GHOST)
 #ifdef __METROTECH_TEST__
@@ -10265,7 +10286,8 @@ MPlayer::Action()
 			HasEffectStatus(EFFECTSTATUS_HAS_BLOOD_BIBLE_KIRO) || HasEffectStatus(EFFECTSTATUS_HAS_BLOOD_BIBLE_HILLEL) ||
 			HasEffectStatus(EFFECTSTATUS_AMBER_OF_GUARD) || HasEffectStatus(EFFECTSTATUS_AMBER_OF_AVENGER) ||
 			HasEffectStatus(EFFECTSTATUS_AMBER_OF_IMMORTAL) || HasEffectStatus(EFFECTSTATUS_AMBER_OF_CURSE) ||
-			HasEffectStatus(EFFECTSTATUS_HAS_CASTLE_SYMBOL_5) || HasEffectStatus(EFFECTSTATUS_HAS_CASTLE_SYMBOL_6))
+			HasEffectStatus(EFFECTSTATUS_HAS_CASTLE_SYMBOL_5) || HasEffectStatus(EFFECTSTATUS_HAS_CASTLE_SYMBOL_6) ||
+			(g_pEffectStatusTable->GetSize() > EFFECTSTATUS_HAS_MIHNEA && HasEffectStatus(EFFECTSTATUS_HAS_MIHNEA)))
 		{
 			bAttackSlow = true; bMoveSlow = true;
 		}

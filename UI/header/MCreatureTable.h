@@ -36,6 +36,10 @@ enum CREATURETRIBE
 	CREATURETRIBE_SLAYER_NPC,		// 슬레이어 스프라이트를 사용하는 NPC
 	CREATURETRIBE_OUSTERS,
 	CREATURETRIBE_OUSTERS_NPC,		// 아우스터즈 스프라이트를 사용하는 NPC
+	CREATURETRIBE_RESERVED_6,		// unused; keeps DK670 numbering
+	CREATURETRIBE_OBJECT,			// 7: DK670 object (Mihnea storage / altar): NPC layout, no attack
+	CREATURETRIBE_OBJECT_2,			// 8
+	CREATURETRIBE_OBJECT_3,			// 9
 	MAX_CREATURETRIBE
 };
 
@@ -154,7 +158,8 @@ class CREATURETABLE_INFO {
 		bool				IsSlayer() const						{ return m_CreatureTribe==CREATURETRIBE_SLAYER || m_CreatureTribe==CREATURETRIBE_SLAYER_NPC; }
 		bool				IsVampire() const						{ return m_CreatureTribe==CREATURETRIBE_VAMPIRE; }
 		bool				IsOusters() const						{ return m_CreatureTribe==CREATURETRIBE_OUSTERS || m_CreatureTribe==CREATURETRIBE_OUSTERS_NPC; }
-		bool				IsNPC() const							{ return m_CreatureTribe==CREATURETRIBE_NPC || m_CreatureTribe==CREATURETRIBE_SLAYER_NPC|| m_CreatureTribe==CREATURETRIBE_OUSTERS_NPC; }
+		bool				IsNPC() const							{ return m_CreatureTribe==CREATURETRIBE_NPC || m_CreatureTribe==CREATURETRIBE_SLAYER_NPC|| m_CreatureTribe==CREATURETRIBE_OUSTERS_NPC || IsObject(); }
+		bool				IsObject() const						{ return m_CreatureTribe>=CREATURETRIBE_OBJECT && m_CreatureTribe<=CREATURETRIBE_OBJECT_3; }
 		void				SetActionSound(int n, int count, TYPE_SOUNDID sid)	{ m_pActionCount[n] = count;  m_pActionSound[n] = sid; }
 		void				SetActionSound(int n, TYPE_SOUNDID sid)	{ m_pActionSound[n] = sid; }
 		void				SetActionCount(int n, int count)		{ m_pActionCount[n] = count; }

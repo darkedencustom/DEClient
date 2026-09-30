@@ -69,8 +69,8 @@ counts included) and shifts the rest of the file.
   Zone `MapShape`).
 * **Delete a record**: `Edit > Delete` (`Del` in the list). For index tables
   this renumbers everything after it, and the viewer says so before doing it.
-* **Save**: `Ctrl+S` writes the file; the first save keeps `<file>.bak` next to
-  it. `Ctrl+Shift+S` saves a copy elsewhere.
+* **Save**: `Ctrl+S` writes the file in place. `Ctrl+Shift+S` saves a copy
+  elsewhere.
 
 Every edit is re-decoded before it is accepted, and rejected if the file would
 no longer be fully accounted for, so a broken table cannot be written. Edit the

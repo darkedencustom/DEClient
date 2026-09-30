@@ -27345,7 +27345,8 @@ void	C_VS_UI_BLOOD_BURST::Show()
 	{
 		static const int tip[GAUGE_COUNT] = { UI_STRING_MESSAGE_BLOOD_BURST_ATTACK, UI_STRING_MESSAGE_BLOOD_BURST_DEFENSE, UI_STRING_MESSAGE_BLOOD_BURST_PARTY };
 		static std::string bloodburst_string;
-		const static char* help_string[1] = { NULL };
+		// DID_HELP reads an S_DEFAULT_HELP_STRING: main, main2, sub - all three must be valid or NULL
+		const static char* help_string[3] = { NULL, NULL, NULL };
 
 		const int i = (print_x - x) / cell;
 		char temp_string[512];

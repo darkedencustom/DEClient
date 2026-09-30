@@ -9,7 +9,7 @@
 // Editing: double-click a field (or F2) to change it, Edit > Add record clones
 // the selected record at the end of the table (keyed tables get the next free
 // id), Edit > Lists appends/removes string-list lines. Every edit is re-decoded
-// before it is accepted; Save writes the bytes and keeps a .bak of the original.
+// before it is accepted; Save writes the bytes in place.
 #ifndef UNICODE
 #define UNICODE
 #endif
@@ -446,12 +446,6 @@ void loadFile(const std::wstring& path)
 bool saveFile(const std::wstring& to)
 {
     if (g.path.empty()) return false;
-    if (to == g.path)
-    {
-        std::wstring bak = g.path + L".bak";
-        if (GetFileAttributesW(bak.c_str()) == INVALID_FILE_ATTRIBUTES)
-            CopyFileW(g.path.c_str(), bak.c_str(), TRUE);
-    }
     if (!writeBytes(to, g.data.data(), g.data.size()))
     {
         MessageBoxW(g.hwnd, (L"Could not write\r\n" + to).c_str(), L"InfViewer", MB_OK | MB_ICONERROR);
@@ -898,7 +892,7 @@ void createControls()
                L"Editing: double-click a field (or F2) to change it. Fields marked # are numbers,\r\n"
                L"s are strings; unmarked ones are derived and read-only. Edit > Add record clones the\r\n"
                L"selected record onto the end of the table, Edit > Lists adds script lines.\r\n"
-               L"Ctrl+S saves (the first save keeps a .bak next to the file).");
+               L"Ctrl+S saves.");
     setStatus(L"Ready");
 }
 
@@ -1040,7 +1034,7 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                                 L"(UI/game/*Table.cpp LoadFromFile), so you can read which ACTIONINFO uses which "
                                 L"EffectSpriteType, FrameID, SoundID and so on.\r\n\r\n"
                                 L"Edits rewrite the record (length prefixes included) and are only kept when the whole "
-                                L"file still decodes; the first save leaves a .bak copy of the original.",
+                                L"file still decodes.",
                                 L"About InfViewer", MB_OK | MB_ICONINFORMATION);
                     return 0;
             }

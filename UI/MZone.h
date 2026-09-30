@@ -290,6 +290,7 @@ class MZone {
 		int			GetGroundEffectCount()				{ return m_mapGroundEffect.size(); }
 		EFFECT_MAP::const_iterator GetGroundEffects()	{ return m_mapGroundEffect.begin(); }
 		EFFECT_MAP::const_iterator GetGroundEffectsEnd()	{ return m_mapGroundEffect.end(); }
+		bool		IsGroundEffectNear(int sX, int sY, TYPE_FRAMEID frameID, int radius) const;	// a ground effect with this frame within radius tiles?
 
 		//--------------------------------------------------------------
 		//

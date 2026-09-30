@@ -5331,6 +5331,34 @@ MZone::AddGroundEffect(MEffect* pEffect)
 //----------------------------------------------------------------------
 // Get GroundEffect
 //----------------------------------------------------------------------
+// A ground effect drawn with this frame within radius tiles of (sX,sY)? Dracula Castle hides the 2F portal
+// tooltip while the Mihnea door (EST 2282, a server tile effect) stands on the stairs.
+bool
+MZone::IsGroundEffectNear(int sX, int sY, TYPE_FRAMEID frameID, int radius) const
+{
+	for (EFFECT_MAP::const_iterator i = m_mapGroundEffect.begin(); i != m_mapGroundEffect.end(); ++i)
+	{
+		MEffect* pEffect = i->second;
+		if (pEffect == NULL || pEffect->GetFrameID() != frameID) continue;
+		int dx = pEffect->GetX() - sX, dy = pEffect->GetY() - sY;
+		if (dx <= radius && -dx <= radius && dy <= radius && -dy <= radius)
+			return true;
+	}
+	// generic tile effects (GCAddEffectToTile -> action node) sit in the sectors' own lists
+	for (int y = sY - radius; y <= sY + radius; y++)
+	{
+		for (int x = sX - radius; x <= sX + radius; x++)
+		{
+			if (x < 0 || y < 0 || x >= GetWidth() || y >= GetHeight()) continue;
+			const MSector& sector = GetSector(x, y);
+			EFFECT_LIST::const_iterator it = sector.GetEffectIterator();
+			for (int n = sector.GetEffectSize(); n > 0; --n, ++it)
+				if (*it != NULL && (*it)->GetFrameID() == frameID) return true;
+		}
+	}
+	return false;
+}
+
 MEffect*	
 MZone::GetGroundEffect(TYPE_OBJECTID id) const
 {

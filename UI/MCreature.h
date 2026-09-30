@@ -160,6 +160,7 @@ class MCreature : public MObject, public MStatus
 		bool			IsVampire() const		{ return (*g_pCreatureTable)[m_CreatureType].IsVampire();	}
 		bool			IsOusters() const		{ return (*g_pCreatureTable)[m_CreatureType].IsOusters();	}
 		bool			IsNPC() const			{ return (*g_pCreatureTable)[m_CreatureType].IsNPC();		}
+		bool			IsObject() const		{ return (*g_pCreatureTable)[m_CreatureType].IsObject();	}
 		int				GetActionMax() const;	
 		bool			IsSlayerCharacter() const;
 		bool			IsVampireCharacter() const;

@@ -8816,7 +8816,10 @@ MTopView::GetSelectedObject(int x, int y, BYTE_ATTRIBUTE actionTarget)
 
 		const MSector& sector = m_pZone->GetSector(sectorPoint.x, sectorPoint.y);
 
-		if (sector.IsPortal())
+		// Dracula Castle: while the Mihnea door (EST 2282) stands on the 2F stairs, that portal is closed
+		bool bDoorNear = m_pZone->IsGroundEffectNear(sectorPoint.x, sectorPoint.y,
+			(*g_pEffectSpriteTypeTable)[EFFECTSPRITETYPE_TEMP2282].FrameID, 6);
+		if (sector.IsPortal() && !bDoorNear)
 		{
 #ifdef OUTPUT_DEBUG_DRAW_PROCESS_INPUT
 			DEBUG_ADD("hasPt");
@@ -22953,6 +22956,8 @@ MTopView::DrawGuildMarkInSiegeWar(MCreature* pCreature, int YPos)
 BOOL
 MTopView::DrawCreatureName(POINT* pPoint, MCreature* pCreature)
 {
+	// object-tribe creatures (Mihnea storage / altar) carry no name or HP bar
+	if (pCreature != NULL && pCreature->IsObject()) return FALSE;
 	// EFFECTSTATUS_GHOST ?? ????????? ???? ?????? ???? ??????
 	if (pCreature == NULL) return FALSE;
 	if (pCreature->HasEffectStatus(EFFECTSTATUS_GHOST))return FALSE;
@@ -23961,6 +23966,7 @@ MTopView::DrawRequestModeMousePointer(POINT* pPoint, MCreature* pCreature)
 void
 MTopView::DrawCreatureNameOverText(POINT* pPoint, MCreature* pCreature)
 {
+	if (pCreature != NULL && pCreature->IsObject()) return;
 	POINT point = *pPoint;
 	int yPoint = DrawChatString(&point,
 		pCreature,

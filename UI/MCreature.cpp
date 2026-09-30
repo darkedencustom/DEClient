@@ -2399,6 +2399,9 @@ MCreature::AddEffectStatus(enum EFFECTSTATUS status, DWORD delayFrame)
 	case EFFECTSTATUS_HAS_FLAG:
 		delayFrame = 0xFFFF;
 		break;
+	case EFFECTSTATUS_HAS_MIHNEA:						// Dracula Castle: until the server removes it
+		delayFrame = 0xFFFF;
+		break;
 	case EFFECTSTATUS_FLAG_INSERT:
 		delayFrame = 0xFFFF;
 		break;
@@ -8271,7 +8274,8 @@ MCreature::Action()
 		HasEffectStatus(EFFECTSTATUS_HAS_BLOOD_BIBLE_KIRO) || HasEffectStatus(EFFECTSTATUS_HAS_BLOOD_BIBLE_HILLEL) ||
 		HasEffectStatus(EFFECTSTATUS_AMBER_OF_GUARD) || HasEffectStatus(EFFECTSTATUS_AMBER_OF_AVENGER) ||
 		HasEffectStatus(EFFECTSTATUS_AMBER_OF_IMMORTAL) || HasEffectStatus(EFFECTSTATUS_AMBER_OF_CURSE) ||
-		HasEffectStatus(EFFECTSTATUS_HAS_CASTLE_SYMBOL_5) || HasEffectStatus(EFFECTSTATUS_HAS_CASTLE_SYMBOL_6))
+		HasEffectStatus(EFFECTSTATUS_HAS_CASTLE_SYMBOL_5) || HasEffectStatus(EFFECTSTATUS_HAS_CASTLE_SYMBOL_6) ||
+		(g_pEffectStatusTable->GetSize() > EFFECTSTATUS_HAS_MIHNEA && HasEffectStatus(EFFECTSTATUS_HAS_MIHNEA)))
 	{
 		bAttackSlow = true; bMoveSlow = true;
 	}

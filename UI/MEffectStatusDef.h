@@ -1303,6 +1303,8 @@ enum EFFECTSTATUS {
 
 	EFFECTSTATUS_CLIENT_GEN_MASTER,							//32
 
+	EFFECTSTATUS_HAS_MIHNEA = 1028,						// Dracula Castle: the Mihnea drawn above its bearer (rows 1016-1027 are the ritual's tile statuses)
+
 	EFFECTSTATUS_MAX,
 	EFFECTSTATUS_NULL
 };
