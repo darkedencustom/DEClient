@@ -4,7 +4,6 @@
 
 #include "FileStream.h"
 
-#include "ivorbiscodec.h"
 #include "ivorbisfile.h"
 
 // #	pragma comment(lib, "ogg_static.lib")
@@ -39,8 +38,12 @@ public:
 	WAVEFORMATEX * GetFormat();
 	bool IsEOF()	{ return m_bEOF; }
 
+	// Why the last Open() failed, for the caller to log.
+	const char* GetLastErrorText() const { return m_szLastError; }
+
 private:
 	bool GetSreamInfo();	
+	void SetError(const char* fmt, ...);
 
 private:
 	WAVEFORMATEX m_WaveFormatEx;
@@ -54,6 +57,8 @@ private:
 	UINT32		   m_nNumSamples;
 
 	bool		   m_bEOF;	
+
+	char		   m_szLastError[256];
 
 public:
 	FileStream	   m_StreamSrc;

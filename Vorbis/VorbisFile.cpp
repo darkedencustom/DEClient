@@ -1,4 +1,8 @@
 #include "VorbisFile.h"
+#include <stdio.h>
+#include <stdarg.h>
+#include <errno.h>
+#include <string.h>
 
 //������ �ҽ��κ��� ���� ���̺귯�� ������ ���� ������ ���۷�
 //�����͸� �����ϰ� �˻��ϴ� ������ �۾��� �����ϴ� �ݹ��Լ�
@@ -56,6 +60,18 @@ VorbisFile::VorbisFile()
 {
 	m_bOpen = false;
 	m_bEOF = false;
+	m_pVorbisInfo = NULL;
+	m_nNumSamples = 0;
+	m_szLastError[0] = 0;
+}
+
+void VorbisFile::SetError(const char* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(m_szLastError, sizeof(m_szLastError) - 1, fmt, args);
+	va_end(args);
+	m_szLastError[sizeof(m_szLastError) - 1] = 0;
 }
 
 VorbisFile::~VorbisFile()
@@ -67,12 +83,16 @@ bool VorbisFile::Open(std::string sFileName)
 {
 	if(m_bOpen)
 	{
+		SetError("Open: already open");
 		return false;
 	}
 
 	//���Ͽ���
 	if(FAILED(m_StreamSrc.Open(sFileName)))
 	{
+		char cwd[MAX_PATH] = "?";
+		GetCurrentDirectoryA(MAX_PATH, cwd);
+		SetError("cannot open file '%s' (errno %d: %s) cwd='%s'", sFileName.c_str(), errno, strerror(errno), cwd);
 		return false;
 	}
 
@@ -87,6 +107,7 @@ bool VorbisFile::Open(std::string sFileName)
 	int res = ov_open_callbacks((void*)&m_StreamSrc, &m_VorbisFile, NULL, 0, cb);		
 	if ( res < 0 )
 	{
+		SetError("ov_open_callbacks failed (%d): '%s' is not a playable Ogg Vorbis stream", res, sFileName.c_str());
 		return false;
 	}
 
@@ -94,6 +115,8 @@ bool VorbisFile::Open(std::string sFileName)
 
 	if(!GetSreamInfo())
 	{
+		if (!m_szLastError[0])
+			SetError("GetSreamInfo failed for '%s'", sFileName.c_str());
 		return false;
 	}
 
@@ -109,6 +132,11 @@ bool VorbisFile::GetSreamInfo()
 
 	//Vorbis ���� ������ �����´�.
 	m_pVorbisInfo = ov_info(&m_VorbisFile, -1);
+	if(!m_pVorbisInfo)
+	{
+		SetError("ov_info returned NULL");
+		return false;
+	}
 
 	//���ϳ� PCM ������ ������ �����´�.
 	m_nNumSamples = (UINT32)ov_pcm_total(&m_VorbisFile, -1);
@@ -154,6 +182,10 @@ bool VorbisFile::Read(BYTE * pBuffer, UINT32 dwSizeToRead,
 
 		if( iRet == 0 || iSection != 0 )
 		{
+			if (iSection != 0)
+				SetError("EOF forced by section=%d iRet=%d", iSection, (int)iRet);
+			else
+				SetError("EOF: ov_read returned 0");
 			m_bEOF = true;				// iRet�� 0 �̸� ������ ���� ������ ����
 		}
 		else if( iRet < 0 )

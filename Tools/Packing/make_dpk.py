@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
-"""Pack the loose Release\\Data tree into a fresh darkeden.dpk + darkeden.dpi.
+"""Pack the loose ReleaseData\\Data tree into a fresh darkeden.dpk + darkeden.dpi.
 
-    python make_dpk.py                     Release\\Data -> Release\\Package
+    python make_dpk.py                     ReleaseData\\Data -> Release\\Package
+    python make_dpk.py --src <Data dir>    pack another loose tree
     python make_dpk.py --out <dir>         another output folder (same drive as the
                                            source, or staging falls back to copying)
     python make_dpk.py --ref <Data dir>    also diff the entry list against the
                                            darkeden.dpk/.dpi pair in that folder
 
-Release\\ is worked on as loose files only; this folds them back into an archive
-for the game folder / VPS. The output is <out>\\Data\\ holding darkeden.dpk,
-darkeden.dpi and the files that must stay loose, plus <out>\\PACKAGE.txt with
-the counts and the sha256 of both halves - the updater's manifest uses sha256,
-so the published lines can be compared directly.
+ReleaseData\\Data is the loose copy of the game data kept in git - edit files
+there. This folds them back into an archive for the game folder / VPS. The
+output is <out>\\Data\\ holding darkeden.dpk, darkeden.dpi and the files that
+must stay loose, plus <out>\\PACKAGE.txt with the counts and the sha256 of both
+halves - the updater's manifest uses sha256, so the published lines can be
+compared directly.
 
 What does NOT go into the archive, and why:
 
@@ -41,7 +43,7 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
-DEFAULT_SRC = os.path.join(REPO, "Release", "Data")
+DEFAULT_SRC = os.path.join(REPO, "ReleaseData", "Data")     # in git; Release\ is build output
 DEFAULT_OUT = os.path.join(REPO, "Release", "Package")
 DPKPUT = os.path.join(HERE, "dpkput.exe")
 DPKGET = os.path.join(HERE, "dpkget.exe")
@@ -52,7 +54,7 @@ SKIP_PATHS = {"info/player.inf"}
 SKIP_SUFFIXES = (".bak", ".orig", ".tmp", ".py", ".pyc", ".log", ".part", ".old", ".new",
                  ".dpl", ".exe", ".pdb")
 SKIP_INFIXES = (".before_", ".truncated")
-# folder names as the game folder spells them (Release\Data has them lowercase)
+# folder names as the game folder spells them (ReleaseData\Data has them lowercase)
 GAME_DIR_CASE = {"info": "Info", "image": "Image", "map": "Map", "sound": "Sound", "ui": "UI", "music": "Music"}
 
 

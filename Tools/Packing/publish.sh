@@ -10,6 +10,10 @@
 # The number it counts up from is the one in the published manifest, so there
 # is no version file to keep in step. The login server is carried over from the
 # same manifest; name another with SERVER=ip:port ./publish.sh patch
+#
+# It refuses when the uploaded Archive/ would take back a patch players already
+# have (usually someone else's change missing from it). To go back on purpose:
+#   ALLOW_REVERT=1 ./publish.sh patch
 set -euo pipefail
 
 GAME="${GAME:-/root/Documents/Game}"
@@ -55,6 +59,7 @@ echo "publishing ${current:-nothing} -> $next   (login server $server)"
 
 # nginx reads these as www-data; uploads tend to arrive owner-only
 chmod -R a+rX "$GAME"
-python3 "$GAME/make_manifest.py" "$GAME" "$OUT" --version "$next" --server "$server"
+python3 "$GAME/make_manifest.py" "$GAME" "$OUT" --version "$next" --server "$server" \
+    ${ALLOW_REVERT:+--allow-revert}
 
 echo "published $next"

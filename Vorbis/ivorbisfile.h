@@ -24,7 +24,15 @@ extern "C"
 #endif /* __cplusplus */
 
 #include <stdio.h>
-#include "ivorbiscodec.h"
+/* The decoder core in this folder (block.c, synthesis.c, info.c, ...) is the
+ * float libvorbis built against vorbis/codec.h. This file layer must embed the
+ * same vorbis_info / vorbis_dsp_state / vorbis_block layouts, so it must NOT
+ * include Tremor's ivorbiscodec.h: that struct mismatch corrupted the decode
+ * state and made ov_read() report EOF on the very first call (silent BGM). */
+#include "vorbis/codec.h"
+
+/* Provided by info.c but not declared in this (older) vorbis/codec.h. */
+extern int vorbis_synthesis_idheader(ogg_packet *op);
 
 #define CHUNKSIZE 1024
 /* The function prototypes for the callbacks are basically the same as for

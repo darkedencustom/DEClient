@@ -1,0 +1,5 @@
+# The update server's BaseUrl: the same value as BaseUrl= in the players' Updater.ini,
+# the folder holding manifest.txt and files/. make_patch.py --all / --check reads what
+# the server ships from here, so an upload cannot quietly take away someone else's patch.
+# One line, e.g.  http://203.0.113.7/darkeden/
+

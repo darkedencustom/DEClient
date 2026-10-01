@@ -35,6 +35,13 @@ Players' updaters download just the P files that differ from their archive and
 write them into it. Publishing refuses to write this unless Updater.exe knows
 it ("ArchivePatch/1"), because an older updater would lose the archive.
 
+An upload replaces Archive/ whole, so an Archive/ built without someone else's
+change takes that change away from every player. Publishing therefore refuses
+when a patch the last publish shipped would go back to the base (or out of the
+archive) without a newer patch in its place - re-staging from an up to date
+checkout fixes that. To go back on purpose: --allow-revert (ALLOW_REVERT=1 for
+publish.sh).
+
 Unchanged files are not copied again (same size and time), and are hard linked
 rather than copied when <out> is on the same drive.
 """
@@ -146,6 +153,38 @@ def read_entries(path):
     return header, rows
 
 
+def lost_patches(game, out, entries_path):
+    """Patches the last publish shipped that this Archive/ takes back: back to the base version,
+    or out of the archive, with no newer patch in their place. Read before anything is written."""
+    listing = os.path.join(out, "files", "archive", "entries.txt")
+    if not os.path.isfile(listing):
+        return []
+    shipped = {}
+    with open(listing, encoding="utf-8") as f:
+        for line in f:
+            p = line.rstrip("\n").split(" ", 3)
+            if len(p) == 4 and p[0] == "P":
+                shipped[p[3]] = p[1]
+    if not shipped:
+        return []
+    _, base = read_entries(entries_path)
+    arch = find_ci(game, "Archive")
+    files = find_ci(arch, "files") if arch else None
+    removed = set()
+    removed_txt = find_ci(arch, "removed.txt") if arch else None
+    if removed_txt:
+        removed = {l.strip().lower() for l in open(removed_txt, encoding="utf-8") if l.strip()}
+    lost = []
+    for v, h in sorted(shipped.items()):
+        src = find_ci(files, v) if files else None
+        if src is not None and base.get(v) != (sha256(src), os.path.getsize(src)):
+            continue        # still patched, perhaps with a newer version
+        if v not in removed and base.get(v, (None,))[0] == h:
+            continue        # a new base already holds what was shipped
+        lost.append(v)
+    return lost
+
+
 def archive_mode(game, out, entries_path, lines, listed):
     """Adds the base/entries lines and fills files/archive/. Returns a summary line."""
     updater = find_ci(game, "Updater.exe")
@@ -236,6 +275,8 @@ def main():
     ap.add_argument("--version", required=True, help="digits and dots, e.g. 1.0.3 (the launcher draws it)")
     ap.add_argument("--server", default="", help="login server ip:port for players whose Updater.ini names none")
     ap.add_argument("--launch", default="DarkEden.exe")
+    ap.add_argument("--allow-revert", action="store_true",
+                    help="publish even when a patch the last publish shipped goes back to the base")
     args = ap.parse_args()
 
     game, out = os.path.abspath(args.game), os.path.abspath(args.out)
@@ -253,6 +294,17 @@ def main():
         sys.exit("%s is in the wrong place: the Archive folder goes in the game folder itself,\n"
                  "beside Data/ (%s), not inside Data/. Move it:\n"
                  "    mv \"%s\" \"%s\"" % (misplaced, os.path.join(game, "Archive"), misplaced, os.path.join(game, "Archive")))
+
+    # before anything in <out> changes, so a refusal leaves the live publish as it was
+    if entries_path and not args.allow_revert:
+        lost = lost_patches(game, out, entries_path)
+        if lost:
+            sys.exit("This Archive/ takes back %d patch(es) players already have - back to the base\n"
+                     "archive's version, or out of the archive:\n    %s\n"
+                     "An upload replaces Archive/ whole, so this is usually someone else's change missing\n"
+                     "from the one uploaded. Whoever built it: pull, make_patch.py --all, upload again.\n"
+                     "If going back is intended:  ALLOW_REVERT=1 ./publish.sh patch"
+                     % (len(lost), "\n    ".join(lost)))
 
     rels = []
     for root, dirs, files in os.walk(game):

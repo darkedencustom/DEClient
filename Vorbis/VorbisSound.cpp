@@ -1,8 +1,37 @@
 #include "VorbisSound.h"
 #include "VorbisFile.h"
+#include <stdio.h>
+#include <stdarg.h>
 
 #define SOUND_VOLUME_MAX		0
 #define SOUND_VOLUME_MIN		-10000
+
+// Streaming diagnostics, appended to the same Log\bgm.log that BGMManager writes.
+static void VSLog(const char* fmt, ...)
+{
+	FILE* f = fopen("Log\\bgm.log", "a");
+	if (!f) return;
+	fprintf(f, "[%10lu]   ", (unsigned long)GetTickCount());
+	va_list args;
+	va_start(args, fmt);
+	vfprintf(f, fmt, args);
+	va_end(args);
+	fputc('\n', f);
+	fclose(f);
+}
+
+// Largest absolute 16-bit sample in a block: 0 means digital silence.
+static int PeakOf(const void* p, DWORD bytes)
+{
+	const short* s = (const short*)p;
+	int peak = 0;
+	for (DWORD i = 0; i < bytes / 2; ++i)
+	{
+		int v = s[i] < 0 ? -s[i] : s[i];
+		if (v > peak) peak = v;
+	}
+	return peak;
+}
 
 VorbisSound::VorbisSound()
 {
@@ -19,6 +48,17 @@ VorbisSound::VorbisSound()
 	m_nDataCursor = 0;
 	m_nBytesPlayed = 0;
 	m_nLastReadPos = 0;
+
+	m_szLastError[0] = 0;
+}
+
+void VorbisSound::SetError(const char* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(m_szLastError, sizeof(m_szLastError) - 1, fmt, args);
+	va_end(args);
+	m_szLastError[sizeof(m_szLastError) - 1] = 0;
 }
 
 VorbisSound::~VorbisSound()
@@ -33,6 +73,7 @@ void VorbisSound::Init( LPDIRECTSOUND lpdSound )
 {
 	if(lpdSound == NULL)
 	{
+		SetError("Init: DirectSound object is NULL");
 		return;
 	}
 
@@ -57,6 +98,13 @@ bool VorbisSound::Open(std::string sFileName)
 	}	
 	
 	m_sFileName = sFileName;	
+
+	// A previous song leaves its buffer and stream cursors behind; DoLoad()
+	// creates a new buffer, so drop the old one and start the cursors over.
+	SAFE_RELEASE(m_pDSBuffer);
+	m_nDataCursor = 0;
+	m_nBytesPlayed = 0;
+	m_nLastReadPos = 0;
 
 	if ( !DoLoad() )
 	{
@@ -92,9 +140,16 @@ bool VorbisSound::DoLoad()
 	desc.lpwfxFormat = &m_WaveFormat;
 	desc.dwBufferBytes = nBufferSize;
 
+	if(!m_lpdSound)
+	{
+		SetError("DoLoad: no DirectSound object (Init not called or called with NULL)");
+		return false;
+	}
+
 	hr = m_lpdSound->CreateSoundBuffer(&desc, &pDSBuffer, NULL);
 	if(FAILED(hr))
 	{
+		SetError("CreateSoundBuffer failed hr=0x%08lX (%lu Hz, %u ch, %u bytes)", (unsigned long)hr, (unsigned long)m_WaveFormat.nSamplesPerSec, (unsigned)m_WaveFormat.nChannels, (unsigned)nBufferSize);
 		return false;
 	}
 		
@@ -103,6 +158,7 @@ bool VorbisSound::DoLoad()
 	//위 함수를 쓰기 위해서는 dxguid.lib를 링크.
 	if(FAILED(hr))
 	{
+		SetError("QueryInterface(IDirectSoundBuffer) failed hr=0x%08lX", (unsigned long)hr);
 		return false;
 	}
 
@@ -113,6 +169,7 @@ bool VorbisSound::DoLoad()
 	hr = m_pDSBuffer->GetCaps(&m_Caps);	
 	if(FAILED(hr))
 	{
+		SetError("IDirectSoundBuffer::GetCaps failed hr=0x%08lX", (unsigned long)hr);
 		return false;
 	}
 
@@ -129,6 +186,7 @@ bool VorbisSound::LoadSource(UINT32 & nBufferSize)
 {
 	if( !m_pVobisFile->Open(m_sFileName) )
 	{
+		SetError("%s", m_pVobisFile->GetLastErrorText());
 		return false;
 	}
 
@@ -141,6 +199,7 @@ bool VorbisSound::LoadSource(UINT32 & nBufferSize)
 	
 	if(nBufferSize > m_pVobisFile->GetSize())
 	{
+		SetError("stream too short: %u decoded bytes, need at least %u (1 second)", (unsigned)m_pVobisFile->GetSize(), (unsigned)nBufferSize);
 		return false;
 	}	
 	
@@ -158,6 +217,7 @@ bool VorbisSound::FillBuffer()
 							DSBLOCK_ENTIREBUFFER);
 	if(FAILED(hr))
 	{
+		SetError("FillBuffer: Lock failed hr=0x%08lX", (unsigned long)hr);
 		return false;
 	}
 
@@ -169,10 +229,14 @@ bool VorbisSound::FillBuffer()
 
 	if( !m_pVobisFile->Read((BYTE *)pData, nBytesToRead, &nBytesRead ) )
 	{
+		SetError("FillBuffer: Vorbis decode failed");
+		m_pDSBuffer->Unlock(pData, nBytes, NULL, 0);
 		return false;
 	}
 
 	//커서의 이동확인
+	VSLog("FillBuffer: buffer=%lu bytes, decoded=%u, eof=%d, peak=%d, note='%s'", (unsigned long)nBytes, (unsigned)nBytesRead, (int)m_pVobisFile->IsEOF(), PeakOf(pData, nBytesRead), m_pVobisFile->GetLastErrorText());
+
 	m_nDataCursor += nBytesRead;
 	m_nDataCursor %= nBytes;
 
@@ -187,6 +251,7 @@ bool VorbisSound::FillBuffer()
 	hr = m_pDSBuffer->Unlock(pData, nBytes, NULL, 0);
 	if(FAILED(hr))
 	{
+		SetError("FillBuffer: Unlock failed hr=0x%08lX", (unsigned long)hr);
 		return false;
 	}	
 	
@@ -278,6 +343,8 @@ void VorbisSound::ServiceBuffer()
 		UINT32 dwBytesRead = 0;
 		if( !m_pVobisFile->Read((BYTE *)pPtr1, dwByte1, &dwBytesRead) )
 		{
+			VSLog("ServiceBuffer: Vorbis decode FAILED");
+			m_pDSBuffer->Unlock(pPtr1, dwByte1, pPtr2, dwByte2);
 			return;
 		}
 		m_nDataCursor += dwBytesRead;
@@ -325,7 +392,10 @@ bool VorbisSound::Play()
 {
 	// Verify we actually have a DS buffer at this point
 	if(!m_pDSBuffer)
+	{
+		SetError("Play: no DirectSound buffer (Open failed or was never called)");
 		return false;
+	}
 
 	// Begin playing the buffer.  If the looping flag is set or if the
 	// buffer is streaming, begin looping playback
@@ -333,7 +403,10 @@ bool VorbisSound::Play()
 	hr = m_pDSBuffer->Play(0, 0, DSBPLAY_LOOPING);
 	
 	if(FAILED(hr))
+	{
+		SetError("IDirectSoundBuffer::Play failed hr=0x%08lX", (unsigned long)hr);
 		return false;
+	}
 
 	return true;
 }
