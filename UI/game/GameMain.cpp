@@ -713,7 +713,7 @@ SetMode(enum CLIENT_MODE mode)
 
 						BGMManager::Instance()->PlayMusic((*g_pMusicTable)[ musicID ].FilenameWav);
 						int volume = (g_pUserOption->VolumeMusic - 15) * 250;
-						BGMManager::Instance()->SetVolume(volume);
+						BGMManager::Instance()->SetVolume(max( -10000, min( -1, volume )));
 
 #endif
 					}

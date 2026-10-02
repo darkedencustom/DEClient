@@ -3,6 +3,8 @@
 #include "ACriticalSection.h"
 #include "VorbisSound.h"
 #include <process.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 #include <assert.h>
 
@@ -15,6 +17,23 @@
 namespace
 {
 	BGMManager s_BGMManager;
+}
+
+//----------------------------------------------------------------------
+// BGM diagnostics. The DirectSound/Vorbis path fails silently, so every
+// play/stop request and every failure reason is appended to Log\bgm.log.
+//----------------------------------------------------------------------
+static void BGMLog(const char* fmt, ...)
+{
+	FILE* f = fopen("Log\\bgm.log", "a");
+	if (!f) return;
+	fprintf(f, "[%10lu] ", (unsigned long)GetTickCount());
+	va_list args;
+	va_start(args, fmt);
+	vfprintf(f, fmt, args);
+	va_end(args);
+	fputc('\n', f);
+	fclose(f);
 }
 
 
@@ -77,6 +96,7 @@ bool BGMManager::Init(LPDIRECTSOUND directSound)
 	m_pMusicUpdateCS	= new ACriticalSection;
 	m_pVorbisSound		= new VorbisSound;
 	m_pVorbisSound->Init(directSound);
+	BGMLog("Init: directSound=%p%s", directSound, directSound ? "" : "  <-- NULL, music can never play");
 
 	DWORD	dwChildThreadID;
 
@@ -98,6 +118,9 @@ bool BGMManager::Init(LPDIRECTSOUND directSound)
 
 bool BGMManager::Destory()
 {
+	if (m_bInit)
+		BGMLog("Destory");
+
 	// 일단 배경음악 중지하고 시작하자
 	if(m_pVorbisSound)
 	{
@@ -134,6 +157,7 @@ bool BGMManager::PlayMusic(LPCTSTR fileName)
 {
 	if(!m_pVorbisSound)
 	{
+		BGMLog("PlayMusic(%s): BGMManager was never initialised", fileName ? fileName : "(null)");
 		assert("BGMManager::PlayMusic() : vorbis sound not init" && FALSE);
 		return false;
 	}
@@ -144,13 +168,18 @@ bool BGMManager::PlayMusic(LPCTSTR fileName)
 		
 		if(!m_pVorbisSound->Open(fileName))
 		{
+			BGMLog("PlayMusic(%s): Open FAILED: %s", fileName, m_pVorbisSound->GetLastErrorText());
 			return false;
 		}
 		
 		if(!m_pVorbisSound->Play())
 		{
+			BGMLog("PlayMusic(%s): Play FAILED: %s", fileName, m_pVorbisSound->GetLastErrorText());
 			return false;
 		}
+
+		const WAVEFORMATEX& wf = m_pVorbisSound->GetFormat();
+		BGMLog("PlayMusic(%s): playing  %lu Hz, %u ch, volume=%d", fileName, (unsigned long)wf.nSamplesPerSec, (unsigned)wf.nChannels, m_pVorbisSound->GetVolume());
 	}
 
 	return true;
@@ -167,6 +196,7 @@ bool BGMManager::StopMusic()
 
 	synchronized(*m_pMusicUpdateCS)
 	{
+		BGMLog("StopMusic");
 		m_pVorbisSound->Stop();
 	}
 
@@ -184,7 +214,8 @@ void BGMManager::SetVolume(int volume)
 
 	synchronized(*m_pMusicUpdateCS)
 	{
-		m_pVorbisSound->SetVolume(volume);
+		bool ok = m_pVorbisSound->SetVolume(volume);
+		BGMLog("SetVolume(%d): %s", volume, ok ? "ok" : "REJECTED (no buffer or out of range)");
 	}
 }
 

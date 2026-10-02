@@ -22,7 +22,7 @@
 #include <string.h>
 #include <math.h>
 
-#include "ivorbiscodec.h"
+#include "vorbis/codec.h"
 #include "ivorbisfile.h"
 
 #include "os.h"
@@ -1834,7 +1834,7 @@ vorbis_comment *ov_comment(OggVorbis_File *vf,int link){
 long ov_read(OggVorbis_File *vf,char *buffer,int bytes_req,int *bitstream){
   int i,j;
 
-  ogg_int32_t **pcm;
+  float **pcm;
   long samples;
 
   if(vf->ready_state<OPENED)return(OV_EINVAL);
@@ -1858,18 +1858,25 @@ long ov_read(OggVorbis_File *vf,char *buffer,int bytes_req,int *bitstream){
 
   if(samples>0){
 
-    /* yay! proceed to pack data into the byte buffer */
+    /* yay! proceed to pack data into the byte buffer: the core decodes to
+       float, this API hands out host-endian signed 16-bit PCM */
 
     long channels=ov_info(vf,-1)->channels;
 
     if(samples>(bytes_req/(2*channels)))
       samples=bytes_req/(2*channels);
 
+    if(samples<=0)
+      return(OV_EINVAL);
+
     for(i=0;i<channels;i++) { /* It's faster in this order */
-      ogg_int32_t *src=pcm[i];
+      float *src=pcm[i];
       short *dest=((short *)buffer)+i;
       for(j=0;j<samples;j++) {
-        *dest=CLIP_TO_15(src[j]>>9);
+        int val=(int)floor(src[j]*32767.f+.5f);
+        if(val>32767)val=32767;
+        if(val<-32768)val=-32768;
+        *dest=(short)val;
         dest+=channels;
       }
     }

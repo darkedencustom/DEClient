@@ -25,10 +25,15 @@ public:
 	bool		SetVolume(int volume);
 	int			GetVolume();
 
+	// Why the last Open()/Play()/SetVolume() failed, for the caller to log.
+	const char*	GetLastErrorText() const { return m_szLastError; }
+	const WAVEFORMATEX& GetFormat() const { return m_WaveFormat; }
+
 protected:
 	bool		DoLoad();
 	bool	    LoadSource(UINT32 & nBufferSize);
 	bool		FillBuffer();
+	void		SetError(const char* fmt, ...);
 
 protected:
 	std::string				m_sFileName;
@@ -43,6 +48,8 @@ protected:
 	UINT32					m_nDataCursor;
 	UINT32					m_nBytesPlayed;
 	UINT32					m_nLastReadPos;
+
+	char					m_szLastError[256];
 };
 
 //-----------------------------------------------------------------------------

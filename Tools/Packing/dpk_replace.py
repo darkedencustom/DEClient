@@ -9,13 +9,13 @@ script is for patching a local pair for testing.
     python dpk_replace.py info\\npcscript.en.inf [ui\\txt\\item.rpk ...]
     python dpk_replace.py --package <dir> <path under Data> ...
 
-Paths are relative to Release\\Data. Much faster than make_dpk.py when only a
+Paths are relative to ReleaseData\\Data. Much faster than make_dpk.py when only a
 handful of files changed: dpkput add frees the old entry's blocks and the new
 copy reuses them (npcscript.en.inf went in without the .dpk growing a byte).
 
 Steps: dpkput add, then check that every replaced entry reads back byte for byte,
 that no entry was lost, and that a sample of the others (all info files, the
-neighbours of each replaced entry, 400 random) still match Release\\Data. Finally
+neighbours of each replaced entry, 400 random) still match ReleaseData\\Data. Finally
 the new sha256s go into PACKAGE.txt. If dpkput fails, rebuild the package with
 make_dpk.py. The same rules as make_dpk.py apply: nothing make_dpk.py
 would leave out or ship loose (Music, 2-byte files, player.inf, ...) is accepted.
@@ -41,7 +41,7 @@ def dpkget_list(data_dir):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("paths", nargs="+", help="files under Release\\Data, e.g. info\\npcscript.en.inf")
+    ap.add_argument("paths", nargs="+", help="files under ReleaseData\\Data, e.g. info\\npcscript.en.inf")
     ap.add_argument("--src", default=DEFAULT_SRC)
     ap.add_argument("--package", default=DEFAULT_OUT)
     a = ap.parse_args()
@@ -107,7 +107,7 @@ def main():
         if not os.path.isfile(got):
             bad.append(e + " (not extracted)")
         elif os.path.isfile(src) and sha256(got) != sha256(src):
-            bad.append(e + (" (REPLACED ENTRY differs)" if e in replaced else " (differs from Release\\Data)"))
+            bad.append(e + (" (REPLACED ENTRY differs)" if e in replaced else " (differs from the source folder)"))
     shutil.rmtree(tmp)
     if bad:
         problems.append("%d sampled entries read back wrong: %s" % (len(bad), "; ".join(bad[:10])))
