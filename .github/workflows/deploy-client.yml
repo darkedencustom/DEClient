@@ -1,0 +1,122 @@
+name: Deploy client
+
+# Manual button: Actions > Deploy client > Run workflow.
+#
+# Builds DarkEden.exe from the chosen commit, stages every archive file in
+# ReleaseData/Data that differs from the server's base archive, uploads both to
+# the VPS game folder and runs publish.sh, so every updater picks them up on its
+# next start.
+#
+# Repository secrets (Settings > Secrets and variables > Actions):
+#   VPS_HOST         address of the VPS
+#   VPS_USER         SSH user
+#   VPS_SSH_KEY      private half of the deploy key
+#   VPS_KNOWN_HOSTS  ssh-keyscan output for the VPS
+# Repository variable, optional:
+#   VPS_GAME_DIR     game folder on the VPS (default /root/Documents/Game)
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump passed to publish.sh
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      dry_run:
+        description: Build and stage only, change nothing on the server
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# never two publishes at once
+concurrency:
+  group: deploy-client
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Windows for the staging step too: its checkout converts line endings the
+    # same way as a local one, so the hashes match what make_dpk.py packed
+    runs-on: windows-2022
+    timeout-minutes: 90
+    env:
+      GAME: ${{ vars.VPS_GAME_DIR || '/root/Documents/Game' }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      # first, so a broken key fails in seconds instead of after the build
+      - name: SSH to the VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host vps
+            HostName $VPS_HOST
+            User $VPS_USER
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+          EOF
+          ssh vps true
+
+      # the full delta against the base the server publishes, rebuilt from git every run
+      - name: Stage archive patches
+        run: |
+          mkdir -p pkg/Data
+          scp vps:"$GAME/Data/darkeden.entries" pkg/Data/
+          python Tools/Packing/make_patch.py --all --full --src ReleaseData/Data --package pkg | tee stage.log
+          sed -n '/^Staged against/,$p' stage.log >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Build DarkEden.exe
+        shell: pwsh
+        run: msbuild DEClient_v664.sln -t:UI -p:Configuration=Release -p:Platform=x86 -m -v:m -nologo
+
+      # the pdb matching each published exe, for reading crash dumps
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DarkEden-${{ github.sha }}
+          path: |
+            Release/DarkEden.exe
+            Release/DarkEden.pdb
+          if-no-files-found: error
+
+      - name: Upload to the VPS
+        if: ${{ !inputs.dry_run }}
+        run: |
+          # whole-file swaps, so a publish never sees half an upload
+          scp Release/DarkEden.exe vps:"$GAME/DarkEden.exe.new"
+          ssh vps "mv -f '$GAME/DarkEden.exe.new' '$GAME/DarkEden.exe'"
+
+          # Archive/files is replaced, not merged; removed.txt stays the server's own
+          ssh vps "rm -rf '$GAME/Archive/files.new' && mkdir -p '$GAME/Archive'"
+          scp -r pkg/Archive/files vps:"$GAME/Archive/files.new"
+          scp pkg/Archive/base.txt vps:"$GAME/Archive/base.txt"
+          ssh vps "rm -rf '$GAME/Archive/files' && mv '$GAME/Archive/files.new' '$GAME/Archive/files'"
+
+          # the publisher scripts on the server follow the repo
+          scp Tools/Packing/make_manifest.py Tools/Packing/publish.sh vps:"$GAME/"
+
+      - name: Publish
+        if: ${{ !inputs.dry_run }}
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: ssh vps "GAME='$GAME' bash '$GAME/publish.sh' $BUMP"
