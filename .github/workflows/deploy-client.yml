@@ -7,12 +7,17 @@ name: Deploy client
 # the VPS game folder and runs publish.sh, so every updater picks them up on its
 # next start.
 #
-# Repository secrets (Settings > Secrets and variables > Actions):
+# Anyone with write access can run it. The secrets live in the "production"
+# environment (Settings > Environments), which only main may use, and main only
+# changes through a reviewed pull request - so a workflow edited on another
+# branch can never read the key.
+#
+# Environment secrets:
 #   VPS_HOST         address of the VPS
 #   VPS_USER         SSH user
 #   VPS_SSH_KEY      private half of the deploy key
-#   VPS_KNOWN_HOSTS  ssh-keyscan output for the VPS
-# Repository variable, optional:
+#   VPS_KNOWN_HOSTS  "<address> ssh-ed25519 AAAA..." host key line for the VPS
+# Environment variable, optional:
 #   VPS_GAME_DIR     game folder on the VPS (default /root/Documents/Game)
 
 on:
@@ -41,6 +46,7 @@ jobs:
     # Windows for the staging step too: its checkout converts line endings the
     # same way as a local one, so the hashes match what make_dpk.py packed
     runs-on: windows-2022
+    environment: production
     timeout-minutes: 90
     env:
       GAME: ${{ vars.VPS_GAME_DIR || '/root/Documents/Game' }}
