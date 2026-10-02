@@ -54,7 +54,10 @@ jobs:
       run:
         shell: bash
     steps:
+      # full history: make_patch.py looks up every version of a file git ever had
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v6
         with:
@@ -82,13 +85,19 @@ jobs:
           EOF
           ssh vps true
 
-      # the full delta against the base the server publishes, rebuilt from git every run
+      # the full delta against the base the server publishes, rebuilt from git every
+      # run; stops when a patch players have now was never committed, since this
+      # upload would take it away from them
       - name: Stage archive patches
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
         run: |
           mkdir -p pkg/Data
           scp vps:"$GAME/Data/darkeden.entries" pkg/Data/
-          python Tools/Packing/make_patch.py --all --full --src ReleaseData/Data --package pkg | tee stage.log
-          sed -n '/^Staged against/,$p' stage.log >> "$GITHUB_STEP_SUMMARY"
+          python Tools/Packing/make_patch.py --all --full --src ReleaseData/Data --package pkg \
+            --server "http://$VPS_HOST/" | tee stage.log || rc=$?
+          { echo '```'; sed -n '/^Staged against/,$p' stage.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit ${rc:-0}
 
       - uses: microsoft/setup-msbuild@v2
 
