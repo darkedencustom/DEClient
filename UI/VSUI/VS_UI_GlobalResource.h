@@ -175,6 +175,8 @@ public:
 		RW_SCROLL_DOWN = 10,
 		RW_SCROLL_LEFT = 13,
 		RW_SCROLL_RIGHT = 16,
+		RW_CHECK = 19,			// 13x13 checkbox, +1 checked; +2 focused, +4 disabled
+		RW_RADIO = 25,			// 13x13 radio button, the same six states
 	};
 
 	// the title bar DrawDialogRenewalLocked draws for these windows

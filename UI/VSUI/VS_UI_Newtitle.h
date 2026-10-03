@@ -2127,6 +2127,18 @@ private:
 	bool						m_IsTitle;
 	int							Tab_X[4];
 	int							Tab_Y;
+
+	// the in-game window is drawn on the renewal frame; the title screen's
+	// window keeps its own art
+	void						BuildRenewalButtons();
+	void						ShowRenewal();
+	void						ShowRenewalButton(C_VS_UI_EVENT_BUTTON* p_button);
+	void						ShowRenewalSliderLocked(int rect_value, bool active);
+	bool						MouseControlRenewal(UINT message, int _x, int _y);
+	bool						IsRenewalSliderActive(int check_id);
+	int							GetRenewalSliderAt(int _x, int _y);
+	int							GetRenewalHotkeyAt(int _x, int _y);
+	void						CommitValue(enum VALUE_RECT rect_value);
 public:
 	C_VS_UI_OPTION(bool IsTitle = false);
 	~C_VS_UI_OPTION();

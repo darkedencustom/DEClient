@@ -8154,6 +8154,400 @@ void C_VS_UI_TITLE::SendLoginToClient()
 
 
 
+//-----------------------------------------------------------------------------
+// the names the options window prints for DirectInput scan codes
+//-----------------------------------------------------------------------------
+static const char scancode_name[256][20] =
+{
+	"",						// 0x00
+	"ESCAPE",				// 0x01
+	"1",					// 0x02
+	"2",					// 0x03
+	"3",					// 0x04
+	"4",					// 0x05
+	"5",					// 0x06
+	"6",					// 0x07
+	"7",					// 0x08
+	"8",					// 0x09
+	"9",					// 0x0A
+	"0",					// 0x0B
+	"MINUS",				// 0x0C
+	"EQUALS",				// 0x0D
+	"BACK",					// 0x0E
+	"TAB",					// 0x0F
+	"Q",					// 0x10
+	"W",					// 0x11
+	"E",					// 0x12
+	"R",					// 0x13
+	"T",					// 0x14
+	"Y",					// 0x15
+	"U",					// 0x16
+	"I",					// 0x17
+	"O",					// 0x18
+	"P",					// 0x19
+	"LBRACKET",				// 0x1A
+	"RBRACKET",				// 0x1B
+	"RETURN",				// 0x1C
+	"LCONTROL",				// 0x1D
+	"A",					// 0x1E
+	"S",					// 0x1F
+	"D",					// 0x20
+	"F",					// 0x21
+	"G",					// 0x22
+	"H",					// 0x23
+	"J",					// 0x24
+	"K",					// 0x25
+	"L",					// 0x26
+	":",					// 0x27
+	"'",					// 0x28
+	"~",					// 0x29
+	"LSHIFT",				// 0x2A
+	"BACKSLASH",			// 0x2B
+	"Z",					// 0x2C
+	"X",					// 0x2D
+	"C",					// 0x2E
+	"V",					// 0x2F
+	"B",					// 0x30
+	"N",					// 0x31
+	"M",					// 0x32
+	"COMMA",				// 0x33
+	"PERIOD",				// 0x34
+	"SLASH",				// 0x35
+	"RSHIFT",				// 0x36
+	"MULTIPLY",				// 0x37
+	"LMENU",				// 0x38
+	"SPACE",				// 0x39
+	"CAPITAL",				// 0x3A
+	"F1",					// 0x3B
+	"F2",					// 0x3C
+	"F3",					// 0x3D
+	"F4",					// 0x3E
+	"F5",					// 0x3F
+	"F6",					// 0x40
+	"F7",					// 0x41
+	"F8",					// 0x42
+	"F9",					// 0x43
+	"F10",					// 0x44
+	"NUMLOCK",				// 0x45
+	"SCROLL",				// 0x46
+	"NUMPAD7",				// 0x47
+	"NUMPAD8",				// 0x48
+	"NUMPAD9",				// 0x49
+	"SUBTRACT",				// 0x4A
+	"NUMPAD4",				// 0x4B
+	"NUMPAD5",				// 0x4C
+	"NUMPAD6",				// 0x4D
+	"ADD",					// 0x4E
+	"NUMPAD1",				// 0x4F
+	"NUMPAD2",				// 0x50
+	"NUMPAD3",				// 0x51
+	"NUMPAD0",				// 0x52
+	"DECIMAL",				// 0x53
+	"",						// 0x54
+	"",						// 0x55
+	"",						// 0x56
+	"F11",					// 0x57
+	"F12",					// 0x58
+	"",						// 0x59
+	"",						// 0x5A
+	"",						// 0x5B
+	"",						// 0x5C
+	"",						// 0x5D
+	"",						// 0x5E
+	"",						// 0x5F
+	"",						// 0x60
+	"",						// 0x61
+	"",						// 0x62
+	"",						// 0x63
+	"F13",					// 0x64
+	"F14",					// 0x65
+	"F15",					// 0x66
+	"",						// 0x67
+	"",						// 0x68
+	"",						// 0x69
+	"",						// 0x6A
+	"",						// 0x6B
+	"",						// 0x6C
+	"",						// 0x6D
+	"",						// 0x6E
+	"",						// 0x6F
+	"KANA",					// 0x70
+	"",						// 0x71
+	"",						// 0x72
+	"",						// 0x73
+	"",						// 0x74
+	"",						// 0x75
+	"",						// 0x76
+	"",						// 0x77
+	"",						// 0x78
+	"CONVERT",				// 0x79
+	"",						// 0x7A
+	"NOCONVERT",			// 0x7B
+	"",						// 0x7C
+	"YEN",					// 0x7D
+	"",						// 0x7E
+	"",						// 0x7F
+	"",						// 0x80
+	"",						// 0x81
+	"",						// 0x82
+	"",						// 0x83
+	"",						// 0x84
+	"",						// 0x85
+	"",						// 0x86
+	"",						// 0x87
+	"",						// 0x88
+	"",						// 0x89
+	"",						// 0x8A
+	"",						// 0x8B
+	"",						// 0x8C
+	"NUMPADEQUALS",			// 0x8D
+	"",						// 0x8E
+	"",						// 0x8F
+	"CIRCUMFLEX",			// 0x90
+	"AT",					// 0x91
+	"COLON",				// 0x92
+	"UNDERLINE",			// 0x93
+	"KANJI",				// 0x94
+	"STOP",					// 0x95
+	"AX",					// 0x96
+	"UNLABELED",			// 0x97
+	"",						// 0x98
+	"",						// 0x99
+	"",						// 0x9A
+	"",						// 0x9B
+	"NUMPADENTER",			// 0x9C
+	"RCONTROL",				// 0x9D
+	"",						// 0x9E
+	"",						// 0x9F
+	"",						// 0xA0
+	"",						// 0xA1
+	"",						// 0xA2
+	"",						// 0xA3
+	"",						// 0xA4
+	"",						// 0xA5
+	"",						// 0xA6
+	"",						// 0xA7
+	"",						// 0xA8
+	"",						// 0xA9
+	"",						// 0xAA
+	"",						// 0xAB
+	"",						// 0xAC
+	"",						// 0xAD
+	"",						// 0xAE
+	"",						// 0xAF
+	"",						// 0xB0
+	"",						// 0xB1
+	"",						// 0xB2
+	"NUMPADCOMMA",			// 0xB3
+	"",						// 0xB4
+	"DIVIDE",				// 0xB5
+	"",						// 0xB6
+	"PRTSC",				// 0xB7
+	"RMENU",				// 0xB8
+	"",						// 0xB9
+	"",						// 0xBA
+	"",						// 0xBB
+	"",						// 0xBC
+	"",						// 0xBD
+	"",						// 0xBE
+	"",						// 0xBF
+	"",						// 0xC0
+	"",						// 0xC1
+	"",						// 0xC2
+	"",						// 0xC3
+	"",						// 0xC4
+	"PAUSE",				// 0xC5
+	"",						// 0xC6
+	"HOME",					// 0xC7
+	"UP",					// 0xC8
+	"PG UP",				// 0xC9
+	"",						// 0xCA
+	"LEFT",					// 0xCB
+	"",						// 0xCC
+	"RIGHT",				// 0xCD
+	"",						// 0xCE
+	"END",					// 0xCF
+	"DOWN",					// 0xD0
+	"PG DN",				// 0xD1
+	"INSERT",				// 0xD2
+	"DELETE",				// 0xD3
+	"",						// 0xD4
+	"",						// 0xD5
+	"",						// 0xD6
+	"",						// 0xD7
+	"",						// 0xD8
+	"",						// 0xD9
+	"",						// 0xDA
+	"LWIN",					// 0xDB
+	"RWIN",					// 0xDC
+	"APPS",					// 0xDD
+	"POWER",				// 0xDE
+	"SLEEP",				// 0xDF
+	"",						// 0xE0
+	"",						// 0xE1
+	"",						// 0xE2
+	"",						// 0xE3
+	"",						// 0xE4
+	"",						// 0xE5
+	"",						// 0xE6
+	"",						// 0xE7
+	"",						// 0xE8
+	"",						// 0xE9
+	"",						// 0xEA
+	"",						// 0xEB
+	"",						// 0xEC
+	"",						// 0xED
+	"",						// 0xEE
+	"",						// 0xEF
+	"",						// 0xF0
+	"",						// 0xF1
+	"",						// 0xF2
+	"",						// 0xF3
+	"",						// 0xF4
+	"",						// 0xF5
+	"",						// 0xF6
+	"",						// 0xF7
+	"",						// 0xF8
+	"",						// 0xF9
+	"",						// 0xFA
+	"",						// 0xFB
+	"",						// 0xFC
+	"",						// 0xFD
+	"",						// 0xFE
+	"",						// 0xFF
+};
+
+//-----------------------------------------------------------------------------
+// The in-game options window's layout, on the renewal frame: a title bar with
+// the X, four tabs, then the hotkey list or a column of checkbox rows.
+//-----------------------------------------------------------------------------
+static const int s_opt_w = 400, s_opt_h = 322;
+static const char* s_opt_title = "Options";
+static const char* s_opt_tab_label[4] = { "Hotkeys", "Graphics", "Sound", "Game" };
+static const int s_opt_close_right = 22, s_opt_close_y = 4;	// the X, from the right edge
+static const int s_opt_tab_x = 8, s_opt_tab_y = 27, s_opt_tab_gap = 2;
+static const int s_opt_tab_text_dy = 3;
+static const int s_opt_margin = 12;				// the Default button, from the bottom right
+
+// hotkeys tab: the chat style radios, then the list with its scroll bar
+static const int s_opt_radio_x = 14, s_opt_radio_y = 57, s_opt_radio_gap = 130, s_opt_radio_w = 110;
+static const int s_opt_list_x = 8, s_opt_list_right = 33;	// the list stops short of the scroll bar
+static const int s_opt_scroll_right = 25;
+static const int s_opt_header_y = 82, s_opt_header_h = 16;
+static const int s_opt_key_rows_y = 100, s_opt_key_row_h = 19, s_opt_key_rows = 10;
+static const int s_opt_key_name_x = 6, s_opt_key_shortcut_x = 190;	// inside the list
+static const int s_opt_key_text_dy = 2;
+static const WORD s_opt_line_color = 0x2945;	// (40, 40, 40) between the rows
+static const char* s_opt_header_function = "Function";
+static const char* s_opt_header_shortcut = "Shortcut";
+static const char* s_opt_key_hint = "Click a function, then press its new key.";
+static const char* s_opt_default_label = "Default";
+static const char* s_opt_default_question = "Reset every shortcut key to its default?";
+static const int s_opt_accel_box_w = 330, s_opt_accel_box_h = 110;	// "press the new key"
+
+// the checkbox tabs: a 13x13 box, its label, and a slider at the right of some rows
+static const int s_opt_rows_y = 62, s_opt_row_pitch = 24, s_opt_row_h = 18;
+static const int s_opt_box_x = 14, s_opt_box_dy = 2, s_opt_label_x = 34;
+static const int s_opt_slider_right = 150, s_opt_slider_w = 130, s_opt_slider_h = 14;
+
+struct OPTION_ROW
+{
+	int		check;		// the C_VS_UI_OPTION::EXEC_CHECK_ID the row shows
+	int		label;		// its game string
+	int		slider;		// the VALUE_RECT of the slider at its right, or -1
+	bool	box;		// false: only the label and the slider
+};
+
+// "Use 3D acceleration" and "Use teen version" are left out: in game neither
+// can be changed (the 3D path is gone, the teen setting is the server's).
+static const OPTION_ROW s_opt_graphic_rows[] =
+{
+	{ C_VS_UI_OPTION::CHECK_ALPHA_HPBAR,	UI_STRING_MESSAGE_OPTION_MENU_ALPHA_HPBAR,	-1, true },
+	{ C_VS_UI_OPTION::CHECK_BLOOD_DROP,		UI_STRING_MESSAGE_OPTION_MENU_SHED_BLOOD,	-1, true },
+	{ C_VS_UI_OPTION::CHECK_AUTOHIDE_SMOOTH,	UI_STRING_MESSAGE_OPTION_MENU_HIDE_SOFT,	-1, true },
+	{ C_VS_UI_OPTION::CHECK_GAMMA,			UI_STRING_MESSAGE_OPTION_MENU_GAME_BRIGHT,	C_VS_UI_OPTION::RECT_GAMMA, true },
+	{ C_VS_UI_OPTION::CHECK_CHATBOX,		UI_STRING_MESSAGE_OPTION_MENU_CHATTING_TALK,	-1, true },
+	{ C_VS_UI_OPTION::CHECK_FPS,			UI_STRING_MESSAGE_OPTION_MENU_PUT_FPS,		-1, true },
+	{ C_VS_UI_OPTION::CHECK_DEFAULT_ALPHA,	UI_STRING_MESSAGE_OPTION_MENU_WINDOW_ALPHA,	-1, true },
+	{ C_VS_UI_OPTION::CHECK_ALPHA_DEPTH,	UI_STRING_MESSAGE_OPTION_MENU_DENSITY_ALPHA,	C_VS_UI_OPTION::RECT_ALPHA, false },
+	{ C_VS_UI_OPTION::CHECK_DO_NOT_SHOW_PERSNALSHOP_MSG,	UI_STRING_MESSAGE_DO_NOT_SHOW_PERSNALSHOP_MSG,	-1, true },
+};
+
+static const OPTION_ROW s_opt_sound_rows[] =
+{
+	{ C_VS_UI_OPTION::CHECK_SOUND,	UI_STRING_MESSAGE_OPTION_MENU_SOUND_VOLUME,	C_VS_UI_OPTION::RECT_SOUND, true },
+	{ C_VS_UI_OPTION::CHECK_MUSIC,	UI_STRING_MESSAGE_OPTION_MENU_MUSIC_VOLUME,	C_VS_UI_OPTION::RECT_MUSIC, true },
+};
+
+static const OPTION_ROW s_opt_game_rows[] =
+{
+	{ C_VS_UI_OPTION::CHECK_HELP,					UI_STRING_MESSAGE_OPTION_MENU_SHOW_BASIC_HELP,	-1, true },
+	{ C_VS_UI_OPTION::CHECK_FILTERING,				UI_STRING_MESSAGE_OPTION_MENU_NO_LISTEN_BAD_TALK,	-1, true },
+	{ C_VS_UI_OPTION::CHECK_PRELOAD_MONSTER,		UI_STRING_MESSAGE_OPTION_MENU_LOAD_ALL_IMAGE,	-1, true },
+	{ C_VS_UI_OPTION::CHECK_CHAT_WHITE,				UI_STRING_MESSAGE_OPTION_MENU_CHATTING_COLOR_WHITE,	-1, true },
+	{ C_VS_UI_OPTION::CHECK_POPUPCHAT_BY_WHISPER,	UI_STRING_MESSAGE_OPTION_MENU_OPEN_WINDOW_WHEN_WHISPER,	-1, true },
+	{ C_VS_UI_OPTION::CHECK_DO_NOT_SHOW_WAR_MSG,	UI_STRING_MESSAGE_OPTION_DO_NOT_WAR_MSG,		-1, true },
+	{ C_VS_UI_OPTION::CHECK_DO_NOT_SHOW_LAIR_MSG,	UI_STRING_MESSAGE_OPTION_DO_NOT_LAIR_MSG,		-1, true },
+	{ C_VS_UI_OPTION::CHECK_DO_NOT_SHOW_HOLY_LAND_MSG,	UI_STRING_MESSAGE_OPTION_DO_NOT_HOLY_LAND_MSG,	-1, true },
+#if __CONTENTS(__JAPAN_UI)
+	{ C_VS_UI_OPTION::CHECK_ONE_CLICK_ATTACK_OFF,	UI_STRING_MESSAGE_ONE_CLICK_ATTACK_OFF,			-1, true },
+#endif //__JAPAN_UI
+#if __CONTENTS(__LANGUAGE_CHANGE)
+	{ C_VS_UI_OPTION::CHECK_SHOW_GAMEMONEY_WITH_HANGUL,	UI_STRING_MESSAGE_GAMEMONEY_WITH_HANGUL,	-1, true },
+#endif	//__LANGUAGE_CHANGE
+#if __CONTENTS(__GAMEOPTION_ITEMBAY_MESSAGEBOX)
+	{ C_VS_UI_OPTION::CHECK_DO_NOT_SHOW_ITEMBAY_MESSAGEBOX,	UI_GAME_OPTION_ITEM_BAY_MESSAGE_BOX,	-1, true },
+#endif
+};
+
+// the rows of a checkbox tab; none for the hotkeys tab
+static const OPTION_ROW* g_OptionRows(int tab, int& count)
+{
+	switch (tab)
+	{
+	case C_VS_UI_OPTION::TAB_GRAPHIC:
+		count = sizeof(s_opt_graphic_rows) / sizeof(s_opt_graphic_rows[0]);
+		return s_opt_graphic_rows;
+
+	case C_VS_UI_OPTION::TAB_SOUND:
+		count = sizeof(s_opt_sound_rows) / sizeof(s_opt_sound_rows[0]);
+		return s_opt_sound_rows;
+
+	case C_VS_UI_OPTION::TAB_GAME:
+		count = sizeof(s_opt_game_rows) / sizeof(s_opt_game_rows[0]);
+		return s_opt_game_rows;
+	}
+	count = 0;
+	return NULL;
+}
+
+// the hotkey list: every accelerator from ACCEL_SKILL on (F1-F12 and ESC are fixed)
+static int g_OptionHotkeyCount()
+{
+	return MAX_ACCELERATOR - ACCEL_SKILL;
+}
+
+// an accelerator's key as "Ctrl+Alt+Shift+KEY"
+static std::string g_OptionKeyName(WORD key)
+{
+	std::string name;
+	if (ACCEL_HAS_CONTROL(key))
+		name += "Ctrl+";
+	if (ACCEL_HAS_ALT(key))
+		name += "Alt+";
+	if (ACCEL_HAS_SHIFT(key))
+		name += "Shift+";
+	return name + scancode_name[ACCEL_GET_KEY(key)];
+}
+
+// the in-game Default button resets the shortcut keys only; the title
+// screen's reset (ExecF_OptionResetButton) also deletes every saved layout
+void ExecF_OptionDefaultKeys(C_VS_UI_DIALOG* p_this_dialog, id_t id)
+{
+	if (id == DIALOG_EXECID_OK)
+		SetDefaultAccelerator();
+}
+
 /*-----------------------------------------------------------------------------
 - C_VS_UI_OPTION
 -
@@ -8281,30 +8675,12 @@ C_VS_UI_OPTION::C_VS_UI_OPTION(bool IsTitle)
 
 	if (false == m_IsTitle)
 	{
-		m_pC_scroll_bar = new C_VS_UI_SCROLL_BAR(3, Rect(370, 92, -1, 100));
-		m_i_selected_tab = TAB_CONTROL;
+		// the renewal frame, one layout for every race; no sprite packs of its own
+		m_vampire_plus_x = 0; m_vampire_plus_y = 0;
+		Set(g_pUserInformation->iResolution_x / 2 - s_opt_w / 2, g_pUserInformation->iResolution_y / 2 - s_opt_h / 2, s_opt_w, s_opt_h);
 
-		switch (g_eRaceInterface)
-		{
-		case RACE_SLAYER:
-			m_vampire_plus_x = 0; m_vampire_plus_y = 0;
-			m_pC_main_spk = new C_SPRITE_PACK(SPK_OPTION_SLAYER);
-			break;
-
-		case RACE_VAMPIRE:
-			m_vampire_plus_x = 9; m_vampire_plus_y = 1;
-			m_pC_main_spk = new C_SPRITE_PACK(SPK_OPTION_VAMPIRE);
-			break;
-
-		case RACE_OUSTERS:
-			m_vampire_plus_x = 12; m_vampire_plus_y = 10;
-			m_pC_main_spk = new C_SPRITE_PACK(SPK_OPTION_OUSTERS);
-			break;
-		}
-
-		m_pC_etc_spk = new C_SPRITE_PACK(SPK_OPTION);
-		//Set(RESOLUTION_X /2 - m_pC_main_spk->GetWidth()/2, RESOLUTION_Y /2 - m_pC_main_spk->GetHeight()/2, m_pC_main_spk->GetWidth(), m_pC_main_spk->GetHeight());
-		Set(g_pUserInformation->iResolution_x / 2 - m_pC_main_spk->GetWidth() / 2, g_pUserInformation->iResolution_y / 2 - m_pC_main_spk->GetHeight() / 2, m_pC_main_spk->GetWidth(), m_pC_main_spk->GetHeight());
+		m_pC_scroll_bar = new C_VS_UI_SCROLL_BAR(0, Rect(s_opt_w - s_opt_scroll_right, s_opt_key_rows_y, -1, s_opt_key_rows * s_opt_key_row_h));
+		m_pC_scroll_bar->SetRenewal();
 	}
 	else
 	{
@@ -8327,7 +8703,6 @@ C_VS_UI_OPTION::C_VS_UI_OPTION(bool IsTitle)
 
 
 
-	const InterfaceInformation* pSkin = &g_pSkinManager->Get(SkinManager::OPTION);
 	m_pC_button_group = new ButtonGroup(this);
 
 	// ??? ???????? ???
@@ -8342,62 +8717,7 @@ C_VS_UI_OPTION::C_VS_UI_OPTION(bool IsTitle)
 
 	if (false == m_IsTitle)
 	{
-		Tab_X[0] = pSkin->GetRect(0).left;
-		Tab_X[1] = pSkin->GetRect(0).top;
-		Tab_X[2] = pSkin->GetRect(0).right;
-		Tab_X[3] = pSkin->GetRect(0).bottom;
-		Tab_Y = 20;
-
-		m_pC_button_group->Add(new C_VS_UI_EVENT_BUTTON(pSkin->GetPoint(0).x, pSkin->GetPoint(0).y, m_pC_etc_spk->GetWidth(BUTTON_CLOSE), m_pC_etc_spk->GetHeight(BUTTON_CLOSE), CLOSE_ID, this, BUTTON_CLOSE));
-
-		// tab???
-		//int tab_control_x = 116, tab_y = 20, tab_graphic_x = 170, tab_sound_x = 224, tab_game_x = 278;
-		m_pC_button_group->Add(new C_VS_UI_EVENT_BUTTON(pSkin->GetPoint(1).x, pSkin->GetPoint(1).y, m_pC_main_spk->GetWidth(TAB_CONTROL), m_pC_main_spk->GetHeight(TAB_CONTROL), CONTROL_ID, this, TAB_CONTROL));
-		m_pC_button_group->Add(new C_VS_UI_EVENT_BUTTON(pSkin->GetPoint(2).x, pSkin->GetPoint(2).y, m_pC_main_spk->GetWidth(TAB_GRAPHIC), m_pC_main_spk->GetHeight(TAB_GRAPHIC), GRAPHIC_ID, this, TAB_GRAPHIC));
-		m_pC_button_group->Add(new C_VS_UI_EVENT_BUTTON(pSkin->GetPoint(3).x, pSkin->GetPoint(3).y, m_pC_main_spk->GetWidth(TAB_SOUND), m_pC_main_spk->GetHeight(TAB_SOUND), SOUND_ID, this, TAB_SOUND));
-		m_pC_button_group->Add(new C_VS_UI_EVENT_BUTTON(pSkin->GetPoint(4).x, pSkin->GetPoint(4).y, m_pC_main_spk->GetWidth(TAB_GAME), m_pC_main_spk->GetHeight(TAB_GAME), GAME_ID, this, TAB_GAME));
-
-		m_check_x = pSkin->GetPoint(5).x, m_check_y = pSkin->GetPoint(5).y, m_check_gap = 20;
-
-		// control_tab ?????
-	//	int list_button_x = 341, list_button_y = 54;
-		m_pC_control_button_group = new ButtonGroup(this);
-		m_pC_control_button_group->Add(new C_VS_UI_EVENT_BUTTON(m_check_x + 10, m_check_y, m_pC_etc_spk->GetWidth(RADIO_BACK_DISABLE), m_pC_etc_spk->GetHeight(RADIO_BACK_DISABLE), CHECK_NORMAL_CHAT, this, RADIO_BACK_DISABLE));
-		m_pC_control_button_group->Add(new C_VS_UI_EVENT_BUTTON(m_check_x + 120, m_check_y, m_pC_etc_spk->GetWidth(RADIO_BACK_DISABLE), m_pC_etc_spk->GetHeight(RADIO_BACK_DISABLE), CHECK_ENTER_CHAT, this, RADIO_BACK_DISABLE));
-
-		for (i = 0; i < CHECK_CONTROL_MAX; i++)
-			m_pC_control_button_group->Add(new C_VS_UI_EVENT_BUTTON(m_check_x, m_check_y + m_check_gap * (8 + i), m_pC_etc_spk->GetWidth(CHECK_BACK_DISABLE), m_pC_etc_spk->GetHeight(CHECK_BACK_DISABLE), CHECK_CONTROL_TAB + i + 2, this, CHECK_BACK_DISABLE));
-
-#if __CONTENTS(__080405_FIREST_UI_UPDATE)
-		m_pC_control_button_group->Add(new C_VS_UI_EVENT_BUTTON(m_check_x, pSkin->GetPoint(6).y, m_pC_main_spk->GetWidth(RESET_OPTION), m_pC_main_spk->GetHeight(RESET_OPTION), RESET_ID, this, RESET_OPTION));
-#endif //__080405_FIREST_UI_UPDATE
-
-		// graphic_tab ?????
-		m_pC_graphic_button_group = new ButtonGroup(this);
-
-		//091112 fakaus??? ??? ??? ??????
-		//m_pC_graphic_button_group->Add( new C_VS_UI_EVENT_BUTTON(m_check_x+10, m_check_y, m_pC_etc_spk->GetWidth(RADIO_BACK_DISABLE), m_pC_etc_spk->GetHeight(RADIO_BACK_DISABLE), CHECK_RESOLUTION_800x600, this, RADIO_BACK_DISABLE) );
-		//m_pC_graphic_button_group->Add( new C_VS_UI_EVENT_BUTTON(m_check_x+120, m_check_y, m_pC_etc_spk->GetWidth(RADIO_BACK_DISABLE), m_pC_etc_spk->GetHeight(RADIO_BACK_DISABLE), CHECK_RESOLUTION_1024x768, this, RADIO_BACK_DISABLE) );
-		for (i = 0; i < CHECK_GRAPHIC_MAX; i++)
-			// row 0 used to hold the resolution radios; they are gone, so the
-			// checkbox rows start at 0 like the sound and game tabs do.
-			m_pC_graphic_button_group->Add(new C_VS_UI_EVENT_BUTTON(m_check_x, m_check_y + m_check_gap * i, m_pC_etc_spk->GetWidth(CHECK_BACK_DISABLE), m_pC_etc_spk->GetHeight(CHECK_BACK_DISABLE), CHECK_GRAPHIC_TAB + i + 2, this, CHECK_BACK_DISABLE));
-
-		// sound_tab ?????
-		m_pC_sound_button_group = new ButtonGroup(this);
-		for (i = 0; i < CHECK_SOUND_MAX; i++)
-			m_pC_sound_button_group->Add(new C_VS_UI_EVENT_BUTTON(m_check_x, m_check_y + m_check_gap * i, m_pC_etc_spk->GetWidth(CHECK_BACK_DISABLE), m_pC_etc_spk->GetHeight(CHECK_BACK_DISABLE), CHECK_SOUND_TAB + i, this, CHECK_BACK_DISABLE));
-
-		// game_tab ?????
-		m_pC_game_button_group = new ButtonGroup(this);
-		for (i = 0; i < CHECK_GAME_MAX; i++)
-			m_pC_game_button_group->Add(new C_VS_UI_EVENT_BUTTON(m_check_x, m_check_y + m_check_gap * i, m_pC_etc_spk->GetWidth(CHECK_BACK_DISABLE), m_pC_etc_spk->GetHeight(CHECK_BACK_DISABLE), CHECK_GAME_TAB + i, this, CHECK_BACK_DISABLE));
-
-		m_rt_value[1].Set(m_check_x + 120, m_check_y + m_check_gap * (CHECK_GAMMA - CHECK_GRAPHIC_TAB - 2), m_pC_etc_spk->GetWidth(VOLUME_BAR), 15);
-		m_rt_value[2].Set(m_check_x + 120, m_check_y + m_check_gap * (CHECK_SOUND - CHECK_SOUND_TAB), m_pC_etc_spk->GetWidth(VOLUME_BAR), 15);
-		m_rt_value[3].Set(m_check_x + 120, m_check_y + m_check_gap * (CHECK_MUSIC - CHECK_SOUND_TAB), m_pC_etc_spk->GetWidth(VOLUME_BAR), 15);
-		m_rt_value[4].Set(m_check_x + 120, m_check_y + m_check_gap * (CHECK_ALPHA_DEPTH - CHECK_GRAPHIC_TAB - 2), m_pC_etc_spk->GetWidth(VOLUME_BAR), 15);
-
+		BuildRenewalButtons();
 	}
 	else
 	{
@@ -8527,111 +8847,7 @@ void	C_VS_UI_OPTION::ShowButtonWidget(C_VS_UI_EVENT_BUTTON* p_button)
 	//??&???? ?????
 	if (false == m_IsTitle)
 	{
-		if (p_button->m_image_index == CHECK_BACK_DISABLE || p_button->m_image_index == RADIO_BACK_DISABLE)
-		{
-			if (m_check[p_button->GetID()] == CHECK_DISABLE || m_check[p_button->GetID()] == CHECK_CHECK_DISABLE)
-			{
-				m_pC_etc_spk->BltLocked(x + m_vampire_plus_x + p_button->x, y + m_vampire_plus_y + p_button->y, p_button->m_image_index);
-				if (m_check[p_button->GetID()] == CHECK_CHECK_DISABLE)
-					m_pC_etc_spk->BltLocked(x + m_vampire_plus_x + p_button->x + 2, y + m_vampire_plus_y + p_button->y + 2, p_button->m_image_index + 2);
-			}
-			else
-			{
-				m_pC_etc_spk->BltLocked(x + m_vampire_plus_x + p_button->x, y + m_vampire_plus_y + p_button->y, p_button->m_image_index + 1);
-
-				int radio_plus_x = 0, radio_plus_y = 0;
-				if (p_button->m_image_index == RADIO_BACK_DISABLE)
-				{
-					radio_plus_x = 1; radio_plus_y = 1;
-				}
-
-				if (p_button->GetPressState())
-					m_pC_etc_spk->BltLocked(x + m_vampire_plus_x + radio_plus_x + p_button->x + 2, y + m_vampire_plus_y + radio_plus_y + p_button->y + 3, p_button->m_image_index + 2);
-				else if (m_check[p_button->GetID()] == CHECK_CHECK)
-					m_pC_etc_spk->BltLocked(x + m_vampire_plus_x + radio_plus_x + p_button->x + 2, y + m_vampire_plus_y + radio_plus_y + p_button->y + 2, p_button->m_image_index + 2);
-			}
-		}
-		//tab?????
-		else if (p_button->GetID() == CONTROL_ID || p_button->GetID() == GRAPHIC_ID || p_button->GetID() == SOUND_ID || p_button->GetID() == GAME_ID)
-		{
-			if (p_button->GetFocusState())
-			{
-				if (p_button->GetPressState())
-				{
-					m_pC_main_spk->BltLocked(x + m_vampire_plus_x + p_button->x, y + m_vampire_plus_y + p_button->y, p_button->m_image_index);
-				}
-				else
-				{
-					Rect rect(0, 0, p_button->w, p_button->h - 1);
-					m_pC_main_spk->BltLockedClip(x + m_vampire_plus_x + p_button->x, y + m_vampire_plus_y + p_button->y, rect, p_button->m_image_index);
-				}
-			}
-		}
-		//Close???
-		else if (p_button->GetID() == CLOSE_ID)
-		{
-			if (p_button->GetFocusState())
-			{
-				if (p_button->GetPressState())
-					m_pC_etc_spk->BltLocked(x + m_vampire_plus_x + p_button->x, y + m_vampire_plus_y + p_button->y, p_button->m_image_index + 3);
-				else
-					m_pC_etc_spk->BltLocked(x + m_vampire_plus_x + p_button->x, y + m_vampire_plus_y + p_button->y, p_button->m_image_index + 2);
-			}
-			else
-			{
-				if (p_button->GetPressState())
-					m_pC_etc_spk->BltLocked(x + m_vampire_plus_x + p_button->x, y + m_vampire_plus_y + p_button->y, p_button->m_image_index + 1);
-				else
-					m_pC_etc_spk->BltLocked(x + m_vampire_plus_x + p_button->x, y + m_vampire_plus_y + p_button->y, p_button->m_image_index);
-			}
-
-		}
-
-#if __CONTENTS(__080405_FIREST_UI_UPDATE)		
-		else if (p_button->GetID() == RESET_ID)
-		{
-			if (p_button->GetFocusState())
-			{
-				if (p_button->GetPressState())
-					m_pC_main_spk->BltLocked(x + m_vampire_plus_x + p_button->x, y + m_vampire_plus_y + p_button->y, RESET_OPTION_PUSHED);
-				else
-					m_pC_main_spk->BltLocked(x + m_vampire_plus_x + p_button->x, y + m_vampire_plus_y + p_button->y, RESET_OPTION_HILIGHTED);
-			}
-			else
-				m_pC_main_spk->BltLocked(x + m_vampire_plus_x + p_button->x, y + m_vampire_plus_y + p_button->y, RESET_OPTION);
-
-		}
-#endif //__080405_FIREST_UI_UPDATE
-
-		//Hotkey List???
-		else if (p_button->GetID() == LIST_ID)
-		{
-			if (p_button->GetFocusState())
-			{
-				if (p_button->GetPressState())
-					m_pC_etc_spk->BltLocked(x + m_vampire_plus_x + p_button->x, y + m_vampire_plus_y + p_button->y, p_button->m_image_index + 3);
-				else
-					m_pC_etc_spk->BltLocked(x + m_vampire_plus_x + p_button->x, y + m_vampire_plus_y + p_button->y, p_button->m_image_index + 2);
-			}
-			else
-			{
-				if (p_button->GetPressState())
-					m_pC_etc_spk->BltLocked(x + m_vampire_plus_x + p_button->x, y + m_vampire_plus_y + p_button->y, p_button->m_image_index + 1);
-				else
-					m_pC_etc_spk->BltLocked(x + m_vampire_plus_x + p_button->x, y + m_vampire_plus_y + p_button->y, p_button->m_image_index);
-			}
-
-		}
-		else
-			if (p_button->GetFocusState())
-			{
-				if (p_button->GetPressState())
-				{
-					m_pC_etc_spk->BltLocked(x + m_vampire_plus_x + p_button->x, y + m_vampire_plus_y + p_button->y, p_button->m_image_index + 1);
-				}
-				else
-					m_pC_etc_spk->BltLocked(x + m_vampire_plus_x + p_button->x, y + m_vampire_plus_y + p_button->y, p_button->m_image_index);
-			}
+		ShowRenewalButton(p_button);
 	}
 	else
 	{
@@ -8849,7 +9065,10 @@ void C_VS_UI_OPTION::Start()
 		m_check[CHECK_3D] = g_pUserOption->Use3DHAL ? CHECK_CHECK_DISABLE : CHECK_DISABLE;
 
 
-	m_pC_scroll_bar->SetPosMax(MAX_ACCELERATOR - 14 - 7 + 1);
+	if (false == m_IsTitle)
+		m_pC_scroll_bar->SetPosMax(max(1, g_OptionHotkeyCount() - s_opt_key_rows + 1));
+	else
+		m_pC_scroll_bar->SetPosMax(MAX_ACCELERATOR - 14 - 7 + 1);
 	m_focus_hotkey = -1;
 
 	gpC_window_manager->AppearWindow(this);
@@ -8887,6 +9106,14 @@ void C_VS_UI_OPTION::Run(id_t id)
 #endif //__080405_FIREST_UI_UPDATE
 
 		DeleteNew(m_pC_dialog);
+		if (false == m_IsTitle)
+		{
+			m_pC_dialog = new C_VS_UI_DIALOG(-1, -1, 3, 0, ExecF_OptionDefaultKeys, DIALOG_OK | DIALOG_CANCEL);
+			std::string pp_dmsg[1] = { s_opt_default_question };
+			m_pC_dialog->SetMessage(pp_dmsg, 1, SMO_NOFIT, true);
+			m_pC_dialog->Start();
+			break;
+		}
 		m_pC_dialog = new C_VS_UI_DIALOG(-1, -1, 3, 0, ExecF_OptionResetButton, DIALOG_TITLE_OK | DIALOG_TITLE_CANCEL);
 
 		std::string pp_dmsg[1] = {
@@ -9310,7 +9537,7 @@ bool C_VS_UI_OPTION::MouseControl(UINT message, int _x, int _y)
 	static VALUE_RECT value = RECT_MOUSE_SPEED;
 
 	if (false == m_IsTitle)
-		_x -= m_vampire_plus_x; _y -= m_vampire_plus_y;
+		return MouseControlRenewal(message, _x, _y);
 
 	//Window::MouseControl(message, _x, _y);
 	_x -= x; _y -= y;
@@ -9412,29 +9639,7 @@ bool C_VS_UI_OPTION::MouseControl(UINT message, int _x, int _y)
 		if (m_bLBPush)
 		{
 			m_bLBPush = false;
-			switch (value)
-			{
-			case RECT_MOUSE_SPEED:
-				gpC_base->SendMessage(UI_CHANGE_OPTION, CHECK_VALUE_MOUSE_SPEED, m_value_mouse_speed);
-				break;
-
-			case RECT_GAMMA:
-				if (CDirectDraw::IsSupportGammaControl() && m_check[CHECK_GAMMA])
-					CDirectDraw::SetGammaRamp(m_value_gamma);
-				g_pUserOption->GammaValue = m_value_gamma;
-				break;
-
-			case RECT_SOUND:
-				gpC_base->SendMessage(UI_CHANGE_OPTION, CHECK_VALUE_SOUND_VOLUME, m_volume_sound);
-				break;
-
-			case RECT_MUSIC:
-				gpC_base->SendMessage(UI_CHANGE_OPTION, CHECK_VALUE_MUSIC_VOLUME, m_volume_music);
-				break;
-
-			case RECT_ALPHA:
-				break;
-			}
+			CommitValue(value);
 		}
 		break;
 
@@ -9479,266 +9684,13 @@ void C_VS_UI_OPTION::KeyboardControl(UINT message, UINT key, long extra)
 -----------------------------------------------------------------------------*/
 void C_VS_UI_OPTION::Show()
 {
-	static const char scancode_name[256][20] =
+	if (false == m_IsTitle)
 	{
-		"",						// 0x00
-		"ESCAPE",				// 0x01
-		"1",					// 0x02
-		"2",					// 0x03
-		"3",					// 0x04
-		"4",					// 0x05
-		"5",					// 0x06
-		"6",					// 0x07
-		"7",					// 0x08
-		"8",					// 0x09
-		"9",					// 0x0A
-		"0",					// 0x0B
-		"MINUS",				// 0x0C
-		"EQUALS",				// 0x0D
-		"BACK",					// 0x0E
-		"TAB",					// 0x0F
-		"Q",					// 0x10
-		"W",					// 0x11
-		"E",					// 0x12
-		"R",					// 0x13
-		"T",					// 0x14
-		"Y",					// 0x15
-		"U",					// 0x16
-		"I",					// 0x17
-		"O",					// 0x18
-		"P",					// 0x19
-		"LBRACKET",				// 0x1A
-		"RBRACKET",				// 0x1B
-		"RETURN",				// 0x1C
-		"LCONTROL",				// 0x1D
-		"A",					// 0x1E
-		"S",					// 0x1F
-		"D",					// 0x20
-		"F",					// 0x21
-		"G",					// 0x22
-		"H",					// 0x23
-		"J",					// 0x24
-		"K",					// 0x25
-		"L",					// 0x26
-		":",					// 0x27
-		"'",					// 0x28
-		"~",					// 0x29
-		"LSHIFT",				// 0x2A
-		"BACKSLASH",			// 0x2B
-		"Z",					// 0x2C
-		"X",					// 0x2D
-		"C",					// 0x2E
-		"V",					// 0x2F
-		"B",					// 0x30
-		"N",					// 0x31
-		"M",					// 0x32
-		"COMMA",				// 0x33
-		"PERIOD",				// 0x34
-		"SLASH",				// 0x35
-		"RSHIFT",				// 0x36
-		"MULTIPLY",				// 0x37
-		"LMENU",				// 0x38
-		"SPACE",				// 0x39
-		"CAPITAL",				// 0x3A
-		"F1",					// 0x3B
-		"F2",					// 0x3C
-		"F3",					// 0x3D
-		"F4",					// 0x3E
-		"F5",					// 0x3F
-		"F6",					// 0x40
-		"F7",					// 0x41
-		"F8",					// 0x42
-		"F9",					// 0x43
-		"F10",					// 0x44
-		"NUMLOCK",				// 0x45
-		"SCROLL",				// 0x46
-		"NUMPAD7",				// 0x47
-		"NUMPAD8",				// 0x48
-		"NUMPAD9",				// 0x49
-		"SUBTRACT",				// 0x4A
-		"NUMPAD4",				// 0x4B
-		"NUMPAD5",				// 0x4C
-		"NUMPAD6",				// 0x4D
-		"ADD",					// 0x4E
-		"NUMPAD1",				// 0x4F
-		"NUMPAD2",				// 0x50
-		"NUMPAD3",				// 0x51
-		"NUMPAD0",				// 0x52
-		"DECIMAL",				// 0x53
-		"",						// 0x54
-		"",						// 0x55
-		"",						// 0x56
-		"F11",					// 0x57
-		"F12",					// 0x58
-		"",						// 0x59
-		"",						// 0x5A
-		"",						// 0x5B
-		"",						// 0x5C
-		"",						// 0x5D
-		"",						// 0x5E
-		"",						// 0x5F
-		"",						// 0x60
-		"",						// 0x61
-		"",						// 0x62
-		"",						// 0x63
-		"F13",					// 0x64
-		"F14",					// 0x65
-		"F15",					// 0x66
-		"",						// 0x67
-		"",						// 0x68
-		"",						// 0x69
-		"",						// 0x6A
-		"",						// 0x6B
-		"",						// 0x6C
-		"",						// 0x6D
-		"",						// 0x6E
-		"",						// 0x6F
-		"KANA",					// 0x70
-		"",						// 0x71
-		"",						// 0x72
-		"",						// 0x73
-		"",						// 0x74
-		"",						// 0x75
-		"",						// 0x76
-		"",						// 0x77
-		"",						// 0x78
-		"CONVERT",				// 0x79
-		"",						// 0x7A
-		"NOCONVERT",			// 0x7B
-		"",						// 0x7C
-		"YEN",					// 0x7D
-		"",						// 0x7E
-		"",						// 0x7F
-		"",						// 0x80
-		"",						// 0x81
-		"",						// 0x82
-		"",						// 0x83
-		"",						// 0x84
-		"",						// 0x85
-		"",						// 0x86
-		"",						// 0x87
-		"",						// 0x88
-		"",						// 0x89
-		"",						// 0x8A
-		"",						// 0x8B
-		"",						// 0x8C
-		"NUMPADEQUALS",			// 0x8D
-		"",						// 0x8E
-		"",						// 0x8F
-		"CIRCUMFLEX",			// 0x90
-		"AT",					// 0x91
-		"COLON",				// 0x92
-		"UNDERLINE",			// 0x93
-		"KANJI",				// 0x94
-		"STOP",					// 0x95
-		"AX",					// 0x96
-		"UNLABELED",			// 0x97
-		"",						// 0x98
-		"",						// 0x99
-		"",						// 0x9A
-		"",						// 0x9B
-		"NUMPADENTER",			// 0x9C
-		"RCONTROL",				// 0x9D
-		"",						// 0x9E
-		"",						// 0x9F
-		"",						// 0xA0
-		"",						// 0xA1
-		"",						// 0xA2
-		"",						// 0xA3
-		"",						// 0xA4
-		"",						// 0xA5
-		"",						// 0xA6
-		"",						// 0xA7
-		"",						// 0xA8
-		"",						// 0xA9
-		"",						// 0xAA
-		"",						// 0xAB
-		"",						// 0xAC
-		"",						// 0xAD
-		"",						// 0xAE
-		"",						// 0xAF
-		"",						// 0xB0
-		"",						// 0xB1
-		"",						// 0xB2
-		"NUMPADCOMMA",			// 0xB3
-		"",						// 0xB4
-		"DIVIDE",				// 0xB5
-		"",						// 0xB6
-		"PRTSC",				// 0xB7
-		"RMENU",				// 0xB8
-		"",						// 0xB9
-		"",						// 0xBA
-		"",						// 0xBB
-		"",						// 0xBC
-		"",						// 0xBD
-		"",						// 0xBE
-		"",						// 0xBF
-		"",						// 0xC0
-		"",						// 0xC1
-		"",						// 0xC2
-		"",						// 0xC3
-		"",						// 0xC4
-		"PAUSE",				// 0xC5
-		"",						// 0xC6
-		"HOME",					// 0xC7
-		"UP",					// 0xC8
-		"PG UP",				// 0xC9
-		"",						// 0xCA
-		"LEFT",					// 0xCB
-		"",						// 0xCC
-		"RIGHT",				// 0xCD
-		"",						// 0xCE
-		"END",					// 0xCF
-		"DOWN",					// 0xD0
-		"PG DN",				// 0xD1
-		"INSERT",				// 0xD2
-		"DELETE",				// 0xD3
-		"",						// 0xD4
-		"",						// 0xD5
-		"",						// 0xD6
-		"",						// 0xD7
-		"",						// 0xD8
-		"",						// 0xD9
-		"",						// 0xDA
-		"LWIN",					// 0xDB
-		"RWIN",					// 0xDC
-		"APPS",					// 0xDD
-		"POWER",				// 0xDE
-		"SLEEP",				// 0xDF
-		"",						// 0xE0
-		"",						// 0xE1
-		"",						// 0xE2
-		"",						// 0xE3
-		"",						// 0xE4
-		"",						// 0xE5
-		"",						// 0xE6
-		"",						// 0xE7
-		"",						// 0xE8
-		"",						// 0xE9
-		"",						// 0xEA
-		"",						// 0xEB
-		"",						// 0xEC
-		"",						// 0xED
-		"",						// 0xEE
-		"",						// 0xEF
-		"",						// 0xF0
-		"",						// 0xF1
-		"",						// 0xF2
-		"",						// 0xF3
-		"",						// 0xF4
-		"",						// 0xF5
-		"",						// 0xF6
-		"",						// 0xF7
-		"",						// 0xF8
-		"",						// 0xF9
-		"",						// 0xFA
-		"",						// 0xFB
-		"",						// 0xFC
-		"",						// 0xFD
-		"",						// 0xFE
-		"",						// 0xFF
-	};
+		ShowRenewal();
+		return;
+	}
 
+	// the title screen's window from here on
 	const InterfaceInformation* pSkin = &g_pSkinManager->Get(SkinManager::OPTION);
 
 	int i = 0;
@@ -10133,6 +10085,8 @@ void C_VS_UI_OPTION::WindowEventReceiver(id_t event)
 bool C_VS_UI_OPTION::IsPixel(int _x, int _y)
 {
 	//	return m_image_spk.IsPixel(SCR2WIN_X(_x), SCR2WIN_Y(_y));
+	if (false == m_IsTitle)
+		return IsInRect(_x, _y);	// the renewal frame is solid
 	if (m_pC_main_spk)
 	{
 		return m_pC_main_spk->IsPixel(_x - x, _y - y);
@@ -10173,6 +10127,492 @@ void C_VS_UI_OPTION::Effect_Music_ONOFF(EXEC_CHECK_ID check_id)
 
 		gpC_base->SendMessage(UI_CHANGE_OPTION, CHECK_SOUND, m_check[check_id] == CHECK_CHECK);
 	}
+}
+
+//-----------------------------------------------------------------------------
+// CommitValue
+//
+// A slider was let go: apply its value.
+//-----------------------------------------------------------------------------
+void C_VS_UI_OPTION::CommitValue(enum VALUE_RECT rect_value)
+{
+	switch (rect_value)
+	{
+	case RECT_MOUSE_SPEED:
+		gpC_base->SendMessage(UI_CHANGE_OPTION, CHECK_VALUE_MOUSE_SPEED, m_value_mouse_speed);
+		break;
+
+	case RECT_GAMMA:
+		if (CDirectDraw::IsSupportGammaControl() && m_check[CHECK_GAMMA])
+			CDirectDraw::SetGammaRamp(m_value_gamma);
+		g_pUserOption->GammaValue = m_value_gamma;
+		break;
+
+	case RECT_SOUND:
+		gpC_base->SendMessage(UI_CHANGE_OPTION, CHECK_VALUE_SOUND_VOLUME, m_volume_sound);
+		break;
+
+	case RECT_MUSIC:
+		gpC_base->SendMessage(UI_CHANGE_OPTION, CHECK_VALUE_MUSIC_VOLUME, m_volume_music);
+		break;
+
+	case RECT_ALPHA:
+		break;
+	}
+}
+
+//-----------------------------------------------------------------------------
+// BuildRenewalButtons
+//
+// The in-game window's buttons: the X and the tabs, the chat style radios and
+// Default on the hotkeys tab, and a checkbox per row on the others. A row's
+// checkbox reaches across its label, up to the slider when it has one.
+//-----------------------------------------------------------------------------
+void C_VS_UI_OPTION::BuildRenewalButtons()
+{
+	C_SPRITE_PACK* p_widget_spk = gpC_global_resource->m_pC_renewal_widget_spk;
+	C_SPRITE_PACK* p_button_spk = gpC_global_resource->m_pC_assemble_box_button_renewal_spk;
+
+	m_pC_button_group->Add(new C_VS_UI_EVENT_BUTTON(w - s_opt_close_right, s_opt_close_y,
+		p_widget_spk->GetWidth(C_GLOBAL_RESOURCE::RW_CLOSE), p_widget_spk->GetHeight(C_GLOBAL_RESOURCE::RW_CLOSE),
+		CLOSE_ID, this, C_GLOBAL_RESOURCE::RW_CLOSE));
+
+	const int tab_w = p_widget_spk->GetWidth(C_GLOBAL_RESOURCE::RW_TAB);
+	const int tab_h = p_widget_spk->GetHeight(C_GLOBAL_RESOURCE::RW_TAB);
+	for (int tab = 0; tab < 4; tab++)
+	{
+		m_pC_button_group->Add(new C_VS_UI_EVENT_BUTTON(s_opt_tab_x + (tab_w + s_opt_tab_gap) * tab, s_opt_tab_y, tab_w, tab_h,
+			CONTROL_ID + tab, this, C_GLOBAL_RESOURCE::RW_TAB));
+	}
+
+	m_pC_control_button_group = new ButtonGroup(this);
+	for (int i = 0; i < 2; i++)
+	{
+		m_pC_control_button_group->Add(new C_VS_UI_EVENT_BUTTON(s_opt_radio_x + s_opt_radio_gap * i, s_opt_radio_y, s_opt_radio_w, s_opt_row_h,
+			CHECK_NORMAL_CHAT + i, this, C_GLOBAL_RESOURCE::RW_RADIO));
+	}
+	const int default_w = p_button_spk->GetWidth(C_GLOBAL_RESOURCE::ABR_BUTTON_WIDE_GREEN);
+	const int default_h = p_button_spk->GetHeight(C_GLOBAL_RESOURCE::ABR_BUTTON_WIDE_GREEN);
+	m_pC_control_button_group->Add(new C_VS_UI_EVENT_BUTTON(w - s_opt_margin - default_w, h - s_opt_margin - default_h, default_w, default_h,
+		KEY_DEFAULT_INIT, this, C_GLOBAL_RESOURCE::ABR_BUTTON_WIDE_GREEN));
+
+	ButtonGroup** pp_group[3] = { &m_pC_graphic_button_group, &m_pC_sound_button_group, &m_pC_game_button_group };
+	const int group_tab[3] = { TAB_GRAPHIC, TAB_SOUND, TAB_GAME };
+	const int slider_x = w - s_opt_slider_right;
+	for (int g = 0; g < 3; g++)
+	{
+		ButtonGroup* p_group = new ButtonGroup(this);
+		*pp_group[g] = p_group;
+
+		int count = 0;
+		const OPTION_ROW* rows = g_OptionRows(group_tab[g], count);
+		for (int i = 0; i < count; i++)
+		{
+			const int row_y = s_opt_rows_y + i * s_opt_row_pitch;
+			if (rows[i].slider != -1)
+				m_rt_value[rows[i].slider].Set(slider_x, row_y + 1, s_opt_slider_w, s_opt_slider_h);
+			if (rows[i].box)
+			{
+				const int hit_right = rows[i].slider != -1 ? slider_x - 8 : w - s_opt_margin;
+				p_group->Add(new C_VS_UI_EVENT_BUTTON(s_opt_box_x, row_y, hit_right - s_opt_box_x, s_opt_row_h,
+					rows[i].check, this, C_GLOBAL_RESOURCE::RW_CHECK));
+			}
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
+// ShowRenewalButton
+//
+// Inside a surface lock, from ButtonGroup::Show.
+//-----------------------------------------------------------------------------
+void C_VS_UI_OPTION::ShowRenewalButton(C_VS_UI_EVENT_BUTTON* p_button)
+{
+	C_SPRITE_PACK* p_widget_spk = gpC_global_resource->m_pC_renewal_widget_spk;
+	const id_t id = p_button->GetID();
+	const bool focused = p_button->GetFocusState();
+	const bool pushed = p_button->GetPressState();
+
+	switch (id)
+	{
+	case CLOSE_ID:
+		gpC_global_resource->BltRenewalCloseLocked(x + p_button->x, y + p_button->y, focused, pushed);
+		return;
+
+	case CONTROL_ID:
+	case GRAPHIC_ID:
+	case SOUND_ID:
+	case GAME_ID:
+	{
+		const bool selected = m_i_selected_tab == TAB_CONTROL + (int)(id - CONTROL_ID);
+		p_widget_spk->BltLocked(x + p_button->x, y + p_button->y, C_GLOBAL_RESOURCE::RW_TAB + (selected ? 2 : (focused ? 1 : 0)));
+		return;
+	}
+
+	case KEY_DEFAULT_INIT:
+		gpC_global_resource->m_pC_assemble_box_button_renewal_spk->BltLocked(x + p_button->x, y + p_button->y,
+			C_GLOBAL_RESOURCE::ABR_BUTTON_WIDE_GREEN + (pushed ? 2 : (focused ? 1 : 0)));
+		return;
+	}
+
+	// a checkbox or a radio at the left of its row
+	if (p_widget_spk->GetSize() <= C_GLOBAL_RESOURCE::RW_RADIO + 5)
+		return;
+	const CHECK_TYPE check = m_check[id];
+	const bool disabled = check == CHECK_DISABLE || check == CHECK_CHECK_DISABLE;
+	const bool on = check == CHECK_CHECK || check == CHECK_CHECK_DISABLE;
+	const int base = (id == CHECK_NORMAL_CHAT || id == CHECK_ENTER_CHAT) ? C_GLOBAL_RESOURCE::RW_RADIO : C_GLOBAL_RESOURCE::RW_CHECK;
+	const int state = disabled ? 4 : (focused ? 2 : 0);
+	p_widget_spk->BltLocked(x + p_button->x, y + p_button->y + s_opt_box_dy, base + state + (on ? 1 : 0));
+}
+
+//-----------------------------------------------------------------------------
+// IsRenewalSliderActive
+//
+// A slider moves while its checkbox is ticked. The transparency level has no
+// checkbox, so it always moves.
+//-----------------------------------------------------------------------------
+bool C_VS_UI_OPTION::IsRenewalSliderActive(int check_id)
+{
+	return check_id == CHECK_ALPHA_DEPTH || m_check[check_id] == CHECK_CHECK;
+}
+
+//-----------------------------------------------------------------------------
+// ShowRenewalSliderLocked
+//
+// A 4px track, lit up to the value, under an 8x14 thumb.
+//-----------------------------------------------------------------------------
+void C_VS_UI_OPTION::ShowRenewalSliderLocked(int rect_value, bool active)
+{
+	const Rect& rect = m_rt_value[rect_value];
+	const int left = x + rect.x, top = y + rect.y;
+	const int track_y = (rect.h - 4) / 2;
+
+	RECT track = { left, top + track_y, left + rect.w, top + track_y + 4 };
+	DrawAlphaBox(&track, 2, 3, 3, 31);
+	if (!active)
+		return;
+
+	int value_x = 0;
+	switch (rect_value)
+	{
+	case RECT_GAMMA:
+		value_x = (m_value_gamma - MIN_GAMMA_VALUE) * rect.w / MAX_GAMMA_VALUE;
+		break;
+
+	case RECT_SOUND:
+		value_x = m_volume_sound * rect.w / MAX_SOUND_VOLUME;
+		break;
+
+	case RECT_MUSIC:
+		value_x = m_volume_music * rect.w / MAX_MUSIC_VOLUME;
+		break;
+
+	case RECT_ALPHA:
+		value_x = g_pUserOption->ALPHA_DEPTH * rect.w / MAX_ALPHA_DEPTH;
+		break;
+	}
+	value_x = max(0, min(rect.w, value_x));
+
+	if (value_x > 0)
+	{
+		RECT lit = { left, track.top, left + value_x, track.bottom };
+		DrawAlphaBox(&lit, 8, 14, 13, 31);
+	}
+
+	RECT thumb = { left + value_x - 4, top, left + value_x + 4, top + rect.h };
+	DrawAlphaBox(&thumb, 6, 9, 9, 31);
+	RECT face = { thumb.left + 1, thumb.top + 1, thumb.right - 1, thumb.bottom - 1 };
+	DrawAlphaBox(&face, 10, 15, 15, 31);
+}
+
+//-----------------------------------------------------------------------------
+// ShowRenewal
+//
+// The in-game window.
+//-----------------------------------------------------------------------------
+void C_VS_UI_OPTION::ShowRenewal()
+{
+	int row_count = 0;
+	const OPTION_ROW* rows = g_OptionRows(m_i_selected_tab, row_count);
+
+	const int key_count = g_OptionHotkeyCount();
+	const int key_scroll = m_pC_scroll_bar->GetScrollPos();
+	const int key_shown = max(0, min(key_count - key_scroll, s_opt_key_rows));
+	const int list_w = w - s_opt_list_x - s_opt_list_right;
+	// the row being rebound, else the one under the mouse
+	const int key_lit = gC_vs_ui.IsAccelMode() ? gC_vs_ui.GetAccelKey() - ACCEL_SKILL : m_focus_hotkey;
+
+	ButtonGroup* p_tab_group = m_pC_control_button_group;
+	switch (m_i_selected_tab)
+	{
+	case TAB_GRAPHIC:	p_tab_group = m_pC_graphic_button_group;	break;
+	case TAB_SOUND:		p_tab_group = m_pC_sound_button_group;		break;
+	case TAB_GAME:		p_tab_group = m_pC_game_button_group;		break;
+	}
+
+	if (gpC_base->m_p_DDSurface_back->Lock())
+	{
+		gpC_global_resource->DrawDialogRenewalLocked(x, y, w, h, C_GLOBAL_RESOURCE::RENEWAL_TITLE_BAR_H);
+
+		if (m_i_selected_tab == TAB_CONTROL)
+		{
+			RECT header = { x + s_opt_list_x, y + s_opt_header_y, x + s_opt_list_x + list_w, y + s_opt_header_y + s_opt_header_h };
+			DrawAlphaBox(&header, 4, 5, 6, 28);
+
+			if (key_lit >= key_scroll && key_lit < key_scroll + key_shown)
+			{
+				const int row_y = y + s_opt_key_rows_y + (key_lit - key_scroll) * s_opt_key_row_h;
+				RECT band = { x + s_opt_list_x, row_y, x + s_opt_list_x + list_w, row_y + s_opt_key_row_h - 1 };
+				DrawAlphaBox(&band, 5, 8, 8, 28);
+			}
+		}
+
+		for (int i = 0; i < row_count; i++)
+		{
+			if (rows[i].slider != -1)
+				ShowRenewalSliderLocked(rows[i].slider, IsRenewalSliderActive(rows[i].check));
+		}
+
+		m_pC_button_group->Show();
+		p_tab_group->Show();
+
+		gpC_base->m_p_DDSurface_back->Unlock();
+	}
+
+	C_VS_UI_EVENT_BUTTON* p_default = m_pC_control_button_group->GetButton(KEY_DEFAULT_INIT);
+	if (m_i_selected_tab == TAB_CONTROL)
+	{
+		for (int i = 1; i <= key_shown; i++)
+		{
+			gpC_base->m_p_DDSurface_back->HLine(x + s_opt_list_x, y + s_opt_key_rows_y + i * s_opt_key_row_h - 1,
+				list_w, s_opt_line_color);
+		}
+		m_pC_scroll_bar->Show(x, y);
+
+		if (p_default != NULL)
+			gpC_global_resource->DrawRenewalButtonLabel(x + p_default->x, y + p_default->y, p_default->w, p_default->h,
+				s_opt_default_label, p_default->GetPressState());
+	}
+
+	gpC_global_resource->DrawRenewalTitle(x, y, s_opt_title);
+
+	if (g_FL2_GetDC())
+	{
+		PrintInfo& pi = gpC_base->m_chatting_pi;
+		const COLORREF header_color = RGB(160, 190, 190);
+		const COLORREF dim_color = RGB(150, 150, 150);
+
+		for (int tab = 0; tab < 4; tab++)
+		{
+			C_VS_UI_EVENT_BUTTON* p_tab = m_pC_button_group->GetButton(CONTROL_ID + tab);
+			if (p_tab != NULL)
+			{
+				const char* sz_label = s_opt_tab_label[tab];
+				g_PrintColorStr(x + p_tab->x + (p_tab->w - g_GetStringWidth(sz_label, pi.hfont)) / 2, y + p_tab->y + s_opt_tab_text_dy,
+					sz_label, pi, m_i_selected_tab == TAB_CONTROL + tab ? RGB_WHITE : dim_color);
+			}
+		}
+
+		if (m_i_selected_tab == TAB_CONTROL)
+		{
+			const char* sz_chat[2] =
+			{
+				(*g_pGameStringTable)[UI_STRING_MESSAGE_OPTION_MENU_NORMAL_CHATTING].GetString(),
+				(*g_pGameStringTable)[UI_STRING_MESSAGE_OPTION_MENU_ENTER_CHATTING].GetString(),
+			};
+			for (int i = 0; i < 2; i++)
+			{
+				C_VS_UI_EVENT_BUTTON* p_radio = m_pC_control_button_group->GetButton(CHECK_NORMAL_CHAT + i);
+				if (p_radio != NULL)
+					g_PrintColorStr(x + p_radio->x + s_opt_label_x - s_opt_box_x, y + p_radio->y, sz_chat[i], pi, RGB_WHITE);
+			}
+
+			const int header_y = y + s_opt_header_y + 1;
+			g_PrintColorStr(x + s_opt_list_x + s_opt_key_name_x, header_y, s_opt_header_function, gpC_base->m_small_pi, header_color);
+			g_PrintColorStr(x + s_opt_list_x + s_opt_key_shortcut_x, header_y, s_opt_header_shortcut, gpC_base->m_small_pi, header_color);
+
+			for (int i = 0; i < key_shown; i++)
+			{
+				const int index = key_scroll + i;
+				const BYTE accel = ACCEL_SKILL + index;
+				const int text_y = y + s_opt_key_rows_y + i * s_opt_key_row_h + s_opt_key_text_dy;
+				g_PrintColorStr(x + s_opt_list_x + s_opt_key_name_x, text_y, g_pKeyAccelerator->GetName(accel), pi, RGB_WHITE);
+				g_PrintColorStr(x + s_opt_list_x + s_opt_key_shortcut_x, text_y, g_OptionKeyName(g_pKeyAccelerator->GetKey(accel)).c_str(),
+					pi, index == key_lit ? RGB_WHITE : RGB_YELLOW);
+			}
+
+			// the hint, level with Default
+			if (p_default != NULL)
+				g_PrintColorStr(x + s_opt_margin, y + p_default->y + (p_default->h - 13) / 2, s_opt_key_hint, gpC_base->m_small_pi, RGB(170, 170, 170));
+		}
+
+		for (int i = 0; i < row_count; i++)
+		{
+			const CHECK_TYPE check = m_check[rows[i].check];
+			const bool disabled = rows[i].box && (check == CHECK_DISABLE || check == CHECK_CHECK_DISABLE);
+			g_PrintColorStr(x + s_opt_label_x, y + s_opt_rows_y + i * s_opt_row_pitch, (*g_pGameStringTable)[rows[i].label].GetString(),
+				pi, disabled ? RGB(120, 120, 120) : RGB_WHITE);
+		}
+
+		g_FL2_ReleaseDC();
+	}
+
+	// "press the new key", in the middle of the screen
+	if (gC_vs_ui.IsAccelMode())
+	{
+		const int box_x = g_pUserInformation->iResolution_x / 2 - s_opt_accel_box_w / 2;
+		const int box_y = g_pUserInformation->iResolution_y / 2 - s_opt_accel_box_h / 2;
+		const BYTE accel = gC_vs_ui.GetAccelKey();
+
+		// it can reach past the window, over text drawn before it
+		RECT box = { box_x, box_y, box_x + s_opt_accel_box_w, box_y + s_opt_accel_box_h };
+		g_FL2_OverlayOccludeRect(&box, "option key box");
+
+		if (gpC_base->m_p_DDSurface_back->Lock())
+		{
+			gpC_global_resource->DrawDialogRenewalLocked(box_x, box_y, s_opt_accel_box_w, s_opt_accel_box_h, C_GLOBAL_RESOURCE::RENEWAL_TITLE_BAR_H);
+			gpC_base->m_p_DDSurface_back->Unlock();
+		}
+		gpC_global_resource->DrawRenewalTitle(box_x, box_y, g_pKeyAccelerator->GetName(accel));
+
+		if (g_FL2_GetDC())
+		{
+			PrintInfo& pi = gpC_base->m_chatting_pi;
+			g_PrintColorStr(box_x + 16, box_y + 34, g_OptionKeyName(g_pKeyAccelerator->GetKey(accel)).c_str(), pi, RGB_YELLOW);
+			g_PrintColorStr(box_x + 16, box_y + 58, (*g_pGameStringTable)[UI_STRING_MESSAGE_OPTION_MENU_MSG1].GetString(), pi, RGB_WHITE);
+			g_PrintColorStr(box_x + 16, box_y + 78, (*g_pGameStringTable)[UI_STRING_MESSAGE_OPTION_MENU_MSG2].GetString(), pi, RGB(170, 170, 170));
+			g_FL2_ReleaseDC();
+		}
+	}
+
+	SHOW_WINDOW_ATTR;
+}
+
+//-----------------------------------------------------------------------------
+// GetRenewalHotkeyAt
+//
+// The hotkey list row under a window point, counted from the first hotkey;
+// -1 for none.
+//-----------------------------------------------------------------------------
+int C_VS_UI_OPTION::GetRenewalHotkeyAt(int _x, int _y)
+{
+	if (m_i_selected_tab != TAB_CONTROL || _x < s_opt_list_x || _x >= w - s_opt_list_right || _y < s_opt_key_rows_y)
+		return -1;
+
+	const int row = (_y - s_opt_key_rows_y) / s_opt_key_row_h;
+	const int index = m_pC_scroll_bar->GetScrollPos() + row;
+	if (row >= s_opt_key_rows || index >= g_OptionHotkeyCount())
+		return -1;
+	return index;
+}
+
+//-----------------------------------------------------------------------------
+// GetRenewalSliderAt
+//
+// The VALUE_RECT of the movable slider under a window point; -1 for none.
+//-----------------------------------------------------------------------------
+int C_VS_UI_OPTION::GetRenewalSliderAt(int _x, int _y)
+{
+	int count = 0;
+	const OPTION_ROW* rows = g_OptionRows(m_i_selected_tab, count);
+	for (int i = 0; i < count; i++)
+	{
+		if (rows[i].slider != -1 && IsRenewalSliderActive(rows[i].check) && m_rt_value[rows[i].slider].IsInRect(_x, _y))
+			return rows[i].slider;
+	}
+	return -1;
+}
+
+//-----------------------------------------------------------------------------
+// MouseControlRenewal
+//
+// The in-game window's mouse: a hotkey row starts rebinding it, a slider
+// follows the mouse while held, anything else drags the window.
+//-----------------------------------------------------------------------------
+bool C_VS_UI_OPTION::MouseControlRenewal(UINT message, int _x, int _y)
+{
+	static VALUE_RECT value = RECT_GAMMA;
+
+	_x -= x; _y -= y;
+
+	bool re = m_pC_button_group->MouseControl(message, _x, _y);
+	switch (m_i_selected_tab)
+	{
+	case TAB_CONTROL:
+		re &= m_pC_control_button_group->MouseControl(message, _x, _y);
+		re &= m_pC_scroll_bar->MouseControl(message, _x, _y);
+		break;
+
+	case TAB_GRAPHIC:
+		re &= m_pC_graphic_button_group->MouseControl(message, _x, _y);
+		break;
+
+	case TAB_SOUND:
+		re &= m_pC_sound_button_group->MouseControl(message, _x, _y);
+		break;
+
+	case TAB_GAME:
+		re &= m_pC_game_button_group->MouseControl(message, _x, _y);
+		break;
+	}
+
+	switch (message)
+	{
+	case M_MOVING:
+		m_focus_hotkey = GetRenewalHotkeyAt(_x, _y);
+		if (m_bLBPush)
+			SetValue(_x, value);
+		break;
+
+	case M_LEFTBUTTON_DOWN:
+	case M_LB_DOUBLECLICK:
+	{
+		if (m_focus_hotkey != -1)
+		{
+			gC_vs_ui.SetAccelMode(ACCEL_SKILL + m_focus_hotkey);
+			break;
+		}
+
+		const int slider = GetRenewalSliderAt(_x, _y);
+		if (slider != -1)
+		{
+			m_bLBPush = true;
+			value = (VALUE_RECT)slider;
+			SetValue(_x, value);
+			break;
+		}
+
+		if (gpC_mouse_pointer->GetPickUpItem() == NULL && re)
+		{
+			MoveReady();
+			SetOrigin(_x, _y);
+		}
+	}
+	break;
+
+	case M_LEFTBUTTON_UP:
+		if (m_bLBPush)
+		{
+			m_bLBPush = false;
+			CommitValue(value);
+		}
+		break;
+
+	case M_WHEEL_UP:
+		if (m_i_selected_tab == TAB_CONTROL)
+			m_pC_scroll_bar->ScrollUp();
+		EMPTY_MOVE;
+		break;
+
+	case M_WHEEL_DOWN:
+		if (m_i_selected_tab == TAB_CONTROL)
+			m_pC_scroll_bar->ScrollDown();
+		EMPTY_MOVE;
+		break;
+	}
+
+	return true;
 }
 
 
