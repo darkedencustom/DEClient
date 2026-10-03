@@ -5,7 +5,8 @@ name: Deploy client
 # Builds DarkEden.exe from the chosen commit, stages every archive file in
 # ReleaseData/Data that differs from the server's base archive, uploads both to
 # the VPS game folder and runs publish.sh, so every updater picks them up on its
-# next start.
+# next start. With "nobuild" ticked the exe is left as the server has it: only
+# the data patches go up and get published.
 #
 # Anyone with write access can run it. The secrets live in the "production"
 # environment (Settings > Environments), which only main may use, and main only
@@ -28,6 +29,10 @@ on:
         type: choice
         options: [patch, minor, major]
         default: patch
+      nobuild:
+        description: Don't build or send the exe, only deploy the inf/data patches and publish
+        type: boolean
+        default: false
       dry_run:
         description: Build and stage only, change nothing on the server
         type: boolean
@@ -100,13 +105,16 @@ jobs:
           exit ${rc:-0}
 
       - uses: microsoft/setup-msbuild@v2
+        if: ${{ !inputs.nobuild }}
 
       - name: Build DarkEden.exe
+        if: ${{ !inputs.nobuild }}
         shell: pwsh
         run: msbuild DEClient_v664.sln -t:UI -p:Configuration=Release -p:Platform=x86 -m -v:m -nologo
 
       # the pdb matching each published exe, for reading crash dumps
       - uses: actions/upload-artifact@v4
+        if: ${{ !inputs.nobuild }}
         with:
           name: DarkEden-${{ github.sha }}
           path: |
@@ -114,13 +122,16 @@ jobs:
             Release/DarkEden.pdb
           if-no-files-found: error
 
-      - name: Upload to the VPS
-        if: ${{ !inputs.dry_run }}
+      # a whole-file swap, so a publish never sees half an upload
+      - name: Upload DarkEden.exe
+        if: ${{ !inputs.dry_run && !inputs.nobuild }}
         run: |
-          # whole-file swaps, so a publish never sees half an upload
           scp Release/DarkEden.exe vps:"$GAME/DarkEden.exe.new"
           ssh vps "mv -f '$GAME/DarkEden.exe.new' '$GAME/DarkEden.exe'"
 
+      - name: Upload archive patches
+        if: ${{ !inputs.dry_run }}
+        run: |
           # Archive/files is replaced, not merged; removed.txt stays the server's own
           ssh vps "rm -rf '$GAME/Archive/files.new' && mkdir -p '$GAME/Archive'"
           scp -r pkg/Archive/files vps:"$GAME/Archive/files.new"
